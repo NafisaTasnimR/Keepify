@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import Sidebar from './Sidebar';
 import ProductsView from './ProductsView';
+import AnalyticsPage from './AnalyticsPage';
 import './Dashboard.css';
 const EMPTY_SALES_DATA = [
     { day: 'Mon', value: 0 },
@@ -176,7 +177,7 @@ const Dashboard = () => {
                 />
             )}
 
-            <main className="main-content">
+            <main className={`main-content ${activeMenu === 'Analytics' ? 'analytics-mode' : ''}`}>
                 <header className="dashboard-header">
                     <div className="header-left">
                         <button
@@ -198,7 +199,9 @@ const Dashboard = () => {
                 </header>
 
                 <div className="dashboard-content">
-                    {activeMenu === 'Products' ? (
+                    {activeMenu === 'Analytics' ? (
+                        <AnalyticsPage />
+                    ) : activeMenu === 'Products' ? (
                         <ProductsView />
                     ) : (
                         <>

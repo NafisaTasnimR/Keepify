@@ -46,6 +46,11 @@ body {
     min-width: 0;
 }
 
+.main-content.analytics-mode {
+    background: var(--bg);
+    color: var(--text-primary);
+}
+
 /* ─── HEADER ──────────────────────────────────────────────────── */
 .dashboard-header {
     display: flex;
@@ -55,6 +60,11 @@ body {
     background-color: var(--bg);
     border-bottom: 1px solid var(--border);
     gap: 16px;
+}
+
+.main-content.analytics-mode .dashboard-header {
+    background-color: var(--bg);
+    border-bottom-color: var(--border);
 }
 
 .header-left {
@@ -98,6 +108,17 @@ body {
     letter-spacing: -0.2px;
 }
 
+.main-content.analytics-mode .dashboard-header h1,
+.main-content.analytics-mode .company-name {
+    color: var(--text-primary);
+}
+
+.main-content.analytics-mode .profile-avatar {
+    background-color: var(--accent);
+    color: #f0f2fa;
+    border-color: var(--border-card);
+}
+
 .header-right {
     display: flex;
     align-items: center;
@@ -131,6 +152,10 @@ body {
     padding: 24px 32px;
     overflow-y: auto;
     background-color: var(--bg);
+}
+
+.main-content.analytics-mode .dashboard-content {
+    background: var(--bg);
 }
 
 
