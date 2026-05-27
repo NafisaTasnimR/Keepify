@@ -1,0 +1,185 @@
+/* ─── PRODUCTS PAGE ─────────────────────────────────────────── */
+.products-page {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.products-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+}
+
+.products-toolbar-left {
+    display: flex;
+    gap: 8px;
+}
+
+.view-toggle-buttons {
+    display: flex;
+    gap: 4px;
+    background-color: var(--bg-card);
+    padding: 4px;
+    border: 1px solid var(--border-card);
+    border-radius: 8px;
+}
+
+.view-btn {
+    padding: 6px 12px;
+    border: none;
+    background-color: transparent;
+    color: var(--text-primary);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+.card {
+    background-color: var(--bg-card);
+    padding: 20px 22px;
+    border-radius: 10px;
+    border: 1px solid var(--border-card);
+    box-shadow: var(--shadow-sm);
+}
+
+.products-card {
+    padding: 0;
+    overflow-x: auto;
+}
+
+.view-btn.active {
+    background-color: var(--accent);
+    color: #f0f2fa;
+}
+
+.view-btn:hover {
+    background-color: var(--border);
+}
+
+.add-product-button {
+    background-color: var(--sidebar);
+    color: #f0f2fa;
+    border: 1px solid rgba(157, 166, 204, 0.35);
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.add-product-button:hover {
+    background-color: var(--sidebar-hover);
+    border-color: rgba(157, 166, 204, 0.6);
+}
+
+.products-page-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 720px;
+}
+
+.products-page-table thead {
+    border-bottom: 1px solid var(--border-card);
+}
+
+.products-page-table th {
+    padding: 10px 14px;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.products-page-table td {
+    padding: 13px 14px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13.5px;
+    color: var(--text-primary);
+}
+
+.products-page-table tbody tr:hover td {
+    background-color: #fdf9f4;
+}
+
+.products-page-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.stock.low {
+    color: var(--negative);
+    font-weight: 600;
+}
+
+.stock.normal {
+    color: var(--text-secondary);
+}
+
+.edit-product-btn {
+    background-color: transparent;
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.edit-product-btn:hover {
+    background-color: var(--accent);
+    color: #f0f2fa;
+    border-color: var(--accent);
+}
+
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.empty-state-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.empty-state-text {
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.empty-state-actions {
+    margin-top: 8px;
+}
+
+.empty-state.error {
+    border-color: rgba(220, 38, 38, 0.3);
+    background-color: rgba(254, 226, 226, 0.35);
+}
+
+/* ─── RESPONSIVE ──────────────────────────────────────────────── */
+@media (max-width: 768px) {
+    .products-toolbar {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .products-toolbar-left {
+        width: 100%;
+        flex-wrap: wrap;
+    }
+
+    .add-product-button {
+        width: 100%;
+    }
+}
