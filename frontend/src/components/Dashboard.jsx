@@ -26,6 +26,7 @@ const formatCurrency = (value, currencySymbol = '$') => {
 
 const Dashboard = () => {
     const [activeMenu, setActiveMenu] = useState('Dashboard');
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [kpis, setKpis] = useState({
         totalRevenue: 0,
         totalOrders: 0,
@@ -152,17 +153,44 @@ const Dashboard = () => {
         },
     ];
 
+    const handleSelectMenu = (menuKey) => {
+        setActiveMenu(menuKey);
+        setIsSidebarOpen(false);
+    };
+
     return (
         <div className="dashboard-container">
             <Sidebar
                 activeMenu={activeMenu}
-                onSelect={setActiveMenu}
+                onSelect={handleSelectMenu}
                 navSections={navSections}
+                isOpen={isSidebarOpen}
+                onClose={() => setIsSidebarOpen(false)}
             />
+            {isSidebarOpen && (
+                <button
+                    type="button"
+                    className="sidebar-backdrop"
+                    onClick={() => setIsSidebarOpen(false)}
+                    aria-label="Close navigation"
+                />
+            )}
 
             <main className="main-content">
                 <header className="dashboard-header">
-                    <h1>{activeMenu === 'AI' ? 'AI Insights' : activeMenu}</h1>
+                    <div className="header-left">
+                        <button
+                            type="button"
+                            className="sidebar-toggle"
+                            onClick={() => setIsSidebarOpen(true)}
+                            aria-label="Open navigation"
+                        >
+                            <span className="toggle-bar" />
+                            <span className="toggle-bar" />
+                            <span className="toggle-bar" />
+                        </button>
+                        <h1>{activeMenu === 'AI' ? 'AI Insights' : activeMenu}</h1>
+                    </div>
                     <div className="header-right">
                         <span className="company-name">Demo Corp</span>
                         <div className="profile-avatar">DC</div>

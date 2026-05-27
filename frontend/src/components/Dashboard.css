@@ -54,6 +54,41 @@ body {
     padding: 16px 32px;
     background-color: var(--bg);
     border-bottom: 1px solid var(--border);
+    gap: 16px;
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.sidebar-toggle {
+    display: none;
+    border: 1px solid var(--border);
+    background-color: #fff;
+    padding: 6px 8px;
+    border-radius: 8px;
+    cursor: pointer;
+    gap: 4px;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.toggle-bar {
+    width: 16px;
+    height: 2px;
+    background-color: var(--accent);
+    border-radius: 999px;
+}
+
+.sidebar-backdrop {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(15, 18, 30, 0.35);
+    border: none;
+    z-index: 1000;
 }
 
 .dashboard-header h1 {
@@ -388,9 +423,9 @@ body {
     border-color: #fcd34d;
 }
 
-/* ─── PRODUCTS PAGE ─────────────────────────────────────────── */
-.products-page {
-    disth: 6px;
+/* ─── SCROLLBARS ──────────────────────────────────────────────── */
+.dashboard-content::-webkit-scrollbar {
+    width: 6px;
 }
 
 .dashboard-content::-webkit-scrollbar-track {
@@ -420,3 +455,62 @@ body {
 }
 
 /* ─── RESPONSIVE ──────────────────────────────────────────────── */
+@media (max-width: 1200px) {
+    .metrics-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 1024px) {
+    .charts-section {
+        grid-template-columns: 1fr;
+    }
+
+    .dashboard-header,
+    .dashboard-content {
+        padding-left: 24px;
+        padding-right: 24px;
+    }
+}
+
+@media (max-width: 768px) {
+    .dashboard-container {
+        flex-direction: column;
+        height: auto;
+        min-height: 100vh;
+    }
+
+    .main-content {
+        width: 100%;
+    }
+
+    .sidebar-toggle {
+        display: inline-flex;
+    }
+
+    .dashboard-header {
+        padding: 14px 16px;
+    }
+
+    .dashboard-header h1 {
+        font-size: 18px;
+    }
+
+    .metrics-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .dashboard-content {
+        padding: 16px;
+    }
+}
+
+@media (max-width: 480px) {
+    .metrics-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .metric-value {
+        font-size: 22px;
+    }
+}

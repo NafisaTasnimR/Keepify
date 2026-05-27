@@ -1,10 +1,26 @@
 import React from 'react';
 import './Sidebar.css';
 
-const Sidebar = ({ activeMenu, onSelect, navSections }) => (
-    <aside className="sidebar">
+const Sidebar = ({
+    activeMenu,
+    onSelect,
+    navSections,
+    isOpen = false,
+    onClose = () => { },
+}) => (
+    <aside className={`sidebar ${isOpen ? 'is-open' : ''}`}>
         <div className="logo">
-            <h2>ChurnSense</h2>
+            <div className="logo-row">
+                <h2>ChurnSense</h2>
+                <button
+                    type="button"
+                    className="sidebar-close"
+                    onClick={onClose}
+                    aria-label="Close navigation"
+                >
+                    Close
+                </button>
+            </div>
             <p className="logo-sub">Analytics dashboard</p>
         </div>
 
