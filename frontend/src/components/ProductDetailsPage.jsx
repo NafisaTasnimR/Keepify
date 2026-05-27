@@ -5,6 +5,7 @@ const ProductDetailsPage = ({
     products,
     onAddProduct,
     onEditProduct,
+    onDeleteProduct,
     viewMode = 'card',
     onViewModeChange,
     isLoading = false,
@@ -120,6 +121,13 @@ const ProductDetailsPage = ({
                                     onClick={() => onEditProduct(i)}
                                 >
                                     Edit
+                                </button>
+                                <button
+                                    type="button"
+                                    className="card-btn card-btn--danger"
+                                    onClick={() => onDeleteProduct(i)}
+                                >
+                                    Delete
                                 </button>
                             </div>
                         </div>

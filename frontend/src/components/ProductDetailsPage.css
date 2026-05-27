@@ -236,6 +236,17 @@
     border-color: var(--accent);
 }
 
+.card-btn--danger {
+    border-color: rgba(220, 38, 38, 0.45);
+    color: #dc2626;
+}
+
+.card-btn--danger:hover {
+    background-color: #dc2626;
+    border-color: #dc2626;
+    color: #fff;
+}
+
 .empty-state {
     display: flex;
     flex-direction: column;
