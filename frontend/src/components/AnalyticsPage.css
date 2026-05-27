@@ -1,0 +1,237 @@
+.analytics-page {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    color: var(--text-primary);
+}
+
+.analytics-status {
+    font-size: 12px;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.analytics-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.period-tab {
+    border: 1px solid var(--border-card);
+    background: var(--bg-card);
+    color: var(--text-primary);
+    border-radius: 10px;
+    padding: 7px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
+}
+
+.period-tab:hover {
+    transform: translateY(-1px);
+    border-color: var(--accent2);
+    background: #fdf9f4;
+}
+
+.period-tab.active {
+    color: #f0f2fa;
+    border-color: var(--accent);
+    background: var(--accent);
+    box-shadow: 0 10px 22px rgba(30, 34, 53, 0.12);
+}
+
+.analytics-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.02fr) minmax(0, 0.98fr);
+    gap: 14px;
+    align-items: stretch;
+}
+
+.analytics-card {
+    border: 1px solid var(--border-card);
+    background: var(--bg-card);
+    border-radius: 16px;
+    box-shadow: var(--shadow-sm);
+}
+
+.revenue-card,
+.activity-card {
+    padding: 18px 18px 16px;
+    min-height: 206px;
+}
+
+.card-header h2 {
+    font-size: 17px;
+    line-height: 1.1;
+    color: var(--text-primary);
+    font-weight: 700;
+    letter-spacing: -0.2px;
+}
+
+.revenue-list {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin-top: 18px;
+}
+
+.card-placeholder {
+    font-size: 13px;
+    color: var(--text-secondary);
+    padding: 12px 0 4px;
+}
+
+.revenue-row {
+    display: grid;
+    grid-template-columns: 68px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 14px;
+}
+
+.revenue-label {
+    font-size: 13px;
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+
+.revenue-track {
+    width: 100%;
+    height: 8px;
+    border-radius: 999px;
+    background: #ebe4da;
+    overflow: hidden;
+}
+
+.revenue-fill {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, var(--accent) 0%, var(--accent2) 100%);
+    box-shadow: 0 0 16px rgba(49, 52, 71, 0.12);
+}
+
+.revenue-value {
+    min-width: 44px;
+    text-align: right;
+    font-size: 13px;
+    color: var(--text-primary);
+    font-weight: 700;
+}
+
+.activity-chart {
+    height: 130px;
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 8px;
+    align-items: end;
+    margin-top: 18px;
+}
+
+.activity-column {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    height: 100%;
+}
+
+.activity-bar-shell {
+    display: flex;
+    align-items: flex-end;
+    width: 100%;
+    height: 100%;
+    min-height: 84px;
+    border-radius: 12px 12px 6px 6px;
+    background: #f5eee6;
+    padding: 0 6px;
+}
+
+.activity-bar {
+    display: block;
+    width: 100%;
+    border-radius: 8px 8px 0 0;
+    background: linear-gradient(180deg, var(--accent2) 0%, var(--accent) 100%);
+    box-shadow: 0 -8px 18px rgba(49, 52, 71, 0.12);
+    min-height: 16px;
+}
+
+.activity-label {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+.insight-card {
+    padding: 18px;
+}
+
+.insight-lead {
+    margin-top: 16px;
+    color: var(--text-primary);
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.6;
+}
+
+.insight-body {
+    margin-top: 8px;
+    color: var(--text-secondary);
+    font-size: 14px;
+    line-height: 1.65;
+    max-width: 860px;
+}
+
+@media (max-width: 1100px) {
+    .analytics-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+
+    .revenue-card,
+    .activity-card,
+    .insight-card {
+        padding: 16px;
+    }
+
+    .revenue-row {
+        grid-template-columns: 54px minmax(0, 1fr) auto;
+        gap: 10px;
+    }
+
+    .activity-chart {
+        gap: 6px;
+    }
+}
+
+@media (max-width: 480px) {
+    .analytics-page {
+        gap: 14px;
+    }
+
+    .period-tab {
+        flex: 1 1 calc(33.333% - 10px);
+        justify-content: center;
+    }
+
+    .card-header h2 {
+        font-size: 16px;
+    }
+
+    .revenue-row {
+        grid-template-columns: 1fr;
+        gap: 6px;
+    }
+
+    .revenue-value {
+        text-align: left;
+    }
+
+    .activity-label {
+        font-size: 11px;
+    }
+}

@@ -1,0 +1,165 @@
+/* ─── SIDEBAR STYLES ──────────────────────────────────────────────── */
+.sidebar {
+    width: 220px;
+    flex-shrink: 0;
+    background-color: var(--sidebar);
+    color: #e8ecf8;
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    overflow-y: auto;
+}
+
+.logo {
+    padding: 24px 20px 20px;
+    border-bottom: 1px solid rgba(157, 166, 204, 0.15);
+}
+
+.logo-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.logo h2 {
+    font-size: 16px;
+    font-weight: 600;
+    color: #f0f2fa;
+    letter-spacing: 0.2px;
+}
+
+.logo-sub {
+    font-size: 11px;
+    color: var(--accent2);
+    margin-top: 2px;
+    opacity: 0.8;
+}
+
+.sidebar-close {
+    display: none;
+    border: 1px solid rgba(157, 166, 204, 0.35);
+    background-color: transparent;
+    color: #e8ecf8;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.sidebar-close:hover {
+    background-color: rgba(157, 166, 204, 0.2);
+}
+
+.nav-sections {
+    padding: 16px 0 20px;
+    flex: 1;
+}
+
+.nav-section {
+    margin-bottom: 6px;
+}
+
+.nav-title {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--accent2);
+    padding: 10px 20px 6px;
+    letter-spacing: 0.8px;
+    opacity: 0.7;
+}
+
+.nav-menu {
+    list-style: none;
+}
+
+.nav-item {
+    padding: 9px 20px;
+    cursor: pointer;
+    transition: all 0.18s ease;
+    color: rgba(232, 236, 248, 0.72);
+    font-size: 13.5px;
+    font-weight: 400;
+    border-left: 2px solid transparent;
+    display: flex;
+    align-items: center;
+    margin: 1px 0;
+}
+
+.nav-item:hover {
+    background-color: rgba(157, 166, 204, 0.12);
+    color: #f0f2fa;
+    border-left-color: rgba(157, 166, 204, 0.4);
+}
+
+.nav-item.active {
+    background-color: rgba(157, 166, 204, 0.18);
+    border-left-color: var(--accent2);
+    color: #f0f2fa;
+    font-weight: 500;
+}
+
+.nav-badge {
+    margin-left: auto;
+    background: rgba(239, 68, 68, 0.25);
+    color: #fca5a5;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 8px;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+/* ─── SCROLLBARS ──────────────────────────────────────────────── */
+.sidebar::-webkit-scrollbar {
+    width: 4px;
+}
+
+.sidebar::-webkit-scrollbar-track {
+    background: var(--sidebar);
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+    background: rgba(157, 166, 204, 0.3);
+    border-radius: 4px;
+}
+
+/* ─── RESPONSIVE ──────────────────────────────────────────────── */
+@media (max-width: 1024px) {
+    .sidebar {
+        width: 200px;
+    }
+}
+
+@media (max-width: 768px) {
+    .sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 100vh;
+        width: 240px;
+        transform: translateX(-100%);
+        transition: transform 0.2s ease;
+        z-index: 1100;
+    }
+
+    .sidebar.is-open {
+        transform: translateX(0);
+    }
+
+    .nav-sections {
+        display: block;
+        padding: 12px 16px;
+        overflow: auto;
+    }
+
+    .nav-section {
+        margin-bottom: 0;
+    }
+
+    .sidebar-close {
+        display: inline-flex;
+    }
+}
