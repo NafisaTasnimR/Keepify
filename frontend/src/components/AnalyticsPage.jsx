@@ -25,26 +25,6 @@ const buildDateRange = (daysBack) => {
     };
 };
 
-const formatPeakLabel = (dateValue, interval) => {
-    const date = new Date(dateValue);
-
-    if (Number.isNaN(date.getTime())) {
-        return 'Unknown';
-    }
-
-    if (interval === 'month') {
-        return date.toLocaleDateString('en-US', {
-            month: 'short',
-            year: '2-digit',
-        });
-    }
-
-    return date.toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-    });
-};
-
 const formatWeekdayLabel = (dateValue) => {
     const date = new Date(dateValue);
 
@@ -60,7 +40,7 @@ const formatWeekdayLabel = (dateValue) => {
 const AnalyticsPage = () => {
     const [selectedPeriod, setSelectedPeriod] = useState('Weekly');
     const [kpis, setKpis] = useState({ totalRevenue: 0, totalOrders: 0, avgOrderValue: 0 });
-    const [revenuePeaks, setRevenuePeaks] = useState([]);
+    const [categoryBreakdown, setCategoryBreakdown] = useState([]);
     const [weekdayActivity, setWeekdayActivity] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -91,18 +71,18 @@ const AnalyticsPage = () => {
                     interval: 'day',
                 });
 
-                const [kpisResponse, peaksResponse, activityResponse] = await Promise.all([
+                const [kpisResponse, categoryResponse, activityResponse] = await Promise.all([
                     fetch(`/api/analytics/kpis?${selectedParams}`, { signal: controller.signal }),
-                    fetch(`/api/analytics/peaks?${selectedParams}&limit=4`, { signal: controller.signal }),
+                    fetch(`/api/analytics/category-breakdown?${selectedParams}`, { signal: controller.signal }),
                     fetch(`/api/analytics/trends?${activityParams}`, { signal: controller.signal }),
                 ]);
 
-                if (!kpisResponse.ok || !peaksResponse.ok || !activityResponse.ok) {
+                if (!kpisResponse.ok || !categoryResponse.ok || !activityResponse.ok) {
                     throw new Error('Failed to load analytics data');
                 }
 
                 const kpisPayload = await kpisResponse.json();
-                const peaksPayload = await peaksResponse.json();
+                const categoryPayload = await categoryResponse.json();
                 const activityPayload = await activityResponse.json();
 
                 if (cancelled) {
@@ -115,11 +95,12 @@ const AnalyticsPage = () => {
                     avgOrderValue: Number(kpisPayload?.data?.avgOrderValue || 0),
                 });
 
-                setRevenuePeaks(
-                    Array.isArray(peaksPayload?.data)
-                        ? peaksPayload.data.map(item => ({
-                            label: formatPeakLabel(item.date, period.interval),
+                setCategoryBreakdown(
+                    Array.isArray(categoryPayload?.data)
+                        ? categoryPayload.data.map(item => ({
+                            label: item.category || 'Uncategorized',
                             value: Number(item.revenue || 0),
+                            percentage: Number(item.percentage || 0),
                         }))
                         : [],
                 );
@@ -136,7 +117,7 @@ const AnalyticsPage = () => {
                 if (requestError.name !== 'AbortError' && !cancelled) {
                     setError('Unable to load analytics from the backend right now.');
                     setKpis({ totalRevenue: 0, totalOrders: 0, avgOrderValue: 0 });
-                    setRevenuePeaks([]);
+                    setCategoryBreakdown([]);
                     setWeekdayActivity([]);
                 }
             } finally {
@@ -155,18 +136,18 @@ const AnalyticsPage = () => {
     }, [period.daysBack, period.interval]);
 
     const revenueRows = useMemo(() => {
-        if (!revenuePeaks.length) {
+        if (!categoryBreakdown.length) {
             return [];
         }
 
-        const maxRevenue = Math.max(...revenuePeaks.map(item => item.value), 1);
+        const maxRevenue = Math.max(...categoryBreakdown.map(item => item.value), 1);
 
-        return revenuePeaks.map(item => ({
+        return categoryBreakdown.map(item => ({
             label: item.label,
             value: formatCurrency(item.value),
-            width: Math.max((item.value / maxRevenue) * 100, 12),
+            width: Math.max(item.percentage || (item.value / maxRevenue) * 100, 12),
         }));
-    }, [revenuePeaks]);
+    }, [categoryBreakdown]);
 
     const activityRows = useMemo(() => {
         const weekOrder = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -180,7 +161,7 @@ const AnalyticsPage = () => {
         [activityRows],
     );
 
-    const topPeak = revenuePeaks[0];
+    const topCategory = categoryBreakdown[0];
     const topActivity = activityRows.reduce(
         (best, item) => (item.value > best.value ? item : best),
         { day: 'Mon', value: 0 },
@@ -196,7 +177,7 @@ const AnalyticsPage = () => {
 
     const insightBody = error
         ? 'Check that the backend is running and the analytics routes are reachable.'
-        : `Top revenue period: ${topPeak ? topPeak.label : 'none'}${topPeak ? ` at ${formatCurrency(topPeak.value)}` : ''}. Weekday activity is strongest on ${topActivity.day}, and the average order value is ${formatCurrency(kpis.avgOrderValue)}.`;
+        : `Top category: ${topCategory ? topCategory.label : 'none'}${topCategory ? ` at ${formatCurrency(topCategory.value)}` : ''}. Weekday activity is strongest on ${topActivity.day}, and the average order value is ${formatCurrency(kpis.avgOrderValue)}.`;
 
     return (
         <section className="analytics-page" aria-label="Analytics overview">
@@ -220,12 +201,12 @@ const AnalyticsPage = () => {
             <div className="analytics-grid">
                 <article className="analytics-card revenue-card">
                     <div className="card-header">
-                        <h2>Revenue peaks</h2>
+                        <h2>Revenue by category</h2>
                     </div>
 
                     <div className="revenue-list">
                         {loading ? (
-                            <div className="card-placeholder">Loading revenue peaks...</div>
+                            <div className="card-placeholder">Loading category breakdown...</div>
                         ) : revenueRows.length ? (
                             revenueRows.map(item => (
                                 <div key={item.label} className="revenue-row">
@@ -237,7 +218,7 @@ const AnalyticsPage = () => {
                                 </div>
                             ))
                         ) : (
-                            <div className="card-placeholder">No revenue peaks found for this range.</div>
+                            <div className="card-placeholder">No category breakdown found for this range.</div>
                         )}
                     </div>
                 </article>

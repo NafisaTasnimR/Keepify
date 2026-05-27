@@ -2,6 +2,7 @@ const {
     getTrends,
     getPeaks,
     getKpis,
+    getCategoryBreakdown,
 } = require('../services/analyticsService');
 
 const parseDate = (value, fallback) => {
@@ -113,8 +114,27 @@ const getKpisHandler = async (req, res, next) => {
     }
 };
 
+const getCategoryBreakdownHandler = async (req, res, next) => {
+    try {
+        const options = buildRange(req.query);
+        if (!options) {
+            res.status(400);
+            throw new Error('Invalid date range');
+        }
+
+        const data = await getCategoryBreakdown(options);
+        res.json({
+            ...buildResponseMeta(options),
+            data,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 module.exports = {
     getTrendsHandler,
     getPeaksHandler,
     getKpisHandler,
+    getCategoryBreakdownHandler,
 };
