@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import ProductPage from './ProductPage';
 import ProductDetailsPage from './ProductDetailsPage';
 import AddProductPage from './AddProductPage';
+import ConfirmDeleteModal from './ConfirmDeleteModal';
 
 const formatPriceLabel = (value, currencySymbol = '$') => {
     const amount = Number(value);
@@ -47,6 +48,9 @@ const ProductsView = () => {
     const [products, setProducts] = useState([]);
     const [productsLoading, setProductsLoading] = useState(true);
     const [productsError, setProductsError] = useState('');
+    const [deleteTarget, setDeleteTarget] = useState(null);
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [deleteError, setDeleteError] = useState('');
 
     const fetchProducts = async () => {
         setProductsLoading(true);
@@ -161,6 +165,48 @@ const ProductsView = () => {
         setEditingProductIndex(null);
     };
 
+    const handleRequestDelete = (index) => {
+        setDeleteTarget({ index, product: products[index] });
+        setDeleteError('');
+    };
+
+    const handleCancelDelete = () => {
+        if (isDeleting) {
+            return;
+        }
+        setDeleteTarget(null);
+        setDeleteError('');
+    };
+
+    const handleConfirmDelete = async () => {
+        if (!deleteTarget) {
+            return;
+        }
+
+        setIsDeleting(true);
+        setDeleteError('');
+
+        try {
+            const product = deleteTarget.product;
+            if (product?.id) {
+                const response = await fetch(`/api/products/${product.id}`, {
+                    method: 'DELETE',
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to delete product');
+                }
+            }
+
+            setProducts(prev => prev.filter((_, idx) => idx !== deleteTarget.index));
+            setDeleteTarget(null);
+        } catch (error) {
+            setDeleteError('Unable to delete product right now.');
+        } finally {
+            setIsDeleting(false);
+        }
+    };
+
     return (
         <>
             {productViewMode === 'card' ? (
@@ -168,6 +214,7 @@ const ProductsView = () => {
                     products={products}
                     onAddProduct={handleAddProduct}
                     onEditProduct={handleEditProduct}
+                    onDeleteProduct={handleRequestDelete}
                     viewMode={productViewMode}
                     onViewModeChange={setProductViewMode}
                     isLoading={productsLoading}
@@ -178,6 +225,7 @@ const ProductsView = () => {
                     products={products}
                     onAddProduct={handleAddProduct}
                     onEditProduct={handleEditProduct}
+                    onDeleteProduct={handleRequestDelete}
                     viewMode={productViewMode}
                     onViewModeChange={setProductViewMode}
                     isLoading={productsLoading}
@@ -193,6 +241,14 @@ const ProductsView = () => {
                     isEditing={editingProductIndex !== null}
                 />
             )}
+            <ConfirmDeleteModal
+                isOpen={Boolean(deleteTarget)}
+                productName={deleteTarget?.product?.name}
+                onConfirm={handleConfirmDelete}
+                onCancel={handleCancelDelete}
+                isDeleting={isDeleting}
+                error={deleteError}
+            />
         </>
     );
 };
