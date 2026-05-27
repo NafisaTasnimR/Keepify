@@ -140,6 +140,31 @@
     border-color: var(--accent);
 }
 
+.action-buttons {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.delete-product-btn {
+    background-color: transparent;
+    color: var(--negative);
+    border: 1px solid rgba(220, 38, 38, 0.4);
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.delete-product-btn:hover {
+    background-color: #dc2626;
+    color: #fff;
+    border-color: #dc2626;
+}
+
 .empty-state {
     display: flex;
     flex-direction: column;

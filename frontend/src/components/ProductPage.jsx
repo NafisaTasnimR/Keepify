@@ -5,6 +5,7 @@ const ProductPage = ({
     products,
     onAddProduct,
     onEditProduct,
+    onDeleteProduct,
     viewMode = 'list',
     onViewModeChange,
     isLoading = false,
@@ -98,14 +99,24 @@ const ProductPage = ({
                                         </span>
                                     </td>
                                     <td>
-                                        <button
-                                            type="button"
-                                            className="edit-product-btn"
-                                            onClick={() => onEditProduct(i)}
-                                            title="Edit product"
-                                        >
-                                            Edit
-                                        </button>
+                                        <div className="action-buttons">
+                                            <button
+                                                type="button"
+                                                className="edit-product-btn"
+                                                onClick={() => onEditProduct(i)}
+                                                title="Edit product"
+                                            >
+                                                Edit
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className="delete-product-btn"
+                                                onClick={() => onDeleteProduct(i)}
+                                                title="Delete product"
+                                            >
+                                                Delete
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                             ))}
