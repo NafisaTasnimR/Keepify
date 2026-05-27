@@ -1,0 +1,422 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+:root {
+    --bg: #faf5ef;
+    --bg-card: #ffffff;
+    --sidebar: #1e2235;
+    --sidebar-hover: #2a2f47;
+    --accent: #313447;
+    --accent2: #9DA6CC;
+    --text-primary: #1a1a2e;
+    --text-secondary: #6b7280;
+    --text-muted: #a0aec0;
+    --border: #e8e0d6;
+    --border-card: #ede7df;
+    --positive: #16a34a;
+    --negative: #dc2626;
+    --warn: #d97706;
+    --shadow-sm: 0 1px 3px rgba(30, 34, 53, 0.06), 0 1px 2px rgba(30, 34, 53, 0.04);
+    --shadow-md: 0 4px 12px rgba(30, 34, 53, 0.08), 0 2px 4px rgba(30, 34, 53, 0.04);
+}
+
+body {
+    font-family: 'DM Sans', sans-serif;
+}
+
+/* ─── LAYOUT ─────────────────────────────────────────────────── */
+.dashboard-container {
+    display: flex;
+    height: 100vh;
+    background-color: var(--bg);
+    color: var(--text-primary);
+}
+
+/* ─── MAIN CONTENT ────────────────────────────────────────────── */
+.main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-width: 0;
+}
+
+/* ─── HEADER ──────────────────────────────────────────────────── */
+.dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 32px;
+    background-color: var(--bg);
+    border-bottom: 1px solid var(--border);
+}
+
+.dashboard-header h1 {
+    font-size: 20px;
+    color: var(--text-primary);
+    font-weight: 600;
+    letter-spacing: -0.2px;
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.company-name {
+    font-size: 13px;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.profile-avatar {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background-color: var(--accent);
+    color: #f0f2fa;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 12px;
+    cursor: pointer;
+    border: 2px solid var(--border-card);
+}
+
+/* ─── CONTENT AREA ────────────────────────────────────────────── */
+.dashboard-content {
+    flex: 1;
+    padding: 24px 32px;
+    overflow-y: auto;
+    background-color: var(--bg);
+}
+
+
+
+/* ─── METRICS GRID ────────────────────────────────────────────── */
+.metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin-bottom: 24px;
+}
+
+.metric-card {
+    background-color: var(--bg-card);
+    padding: 18px 20px;
+    border-radius: 10px;
+    border: 1px solid var(--border-card);
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow 0.2s ease;
+}
+
+.metric-card:hover {
+    box-shadow: var(--shadow-md);
+}
+
+.metric-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    letter-spacing: 0.5px;
+}
+
+.metric-value {
+    font-size: 26px;
+    color: var(--text-primary);
+    font-weight: 700;
+    margin-bottom: 6px;
+    font-family: 'DM Mono', monospace;
+    letter-spacing: -0.5px;
+}
+
+.metric-change {
+    font-size: 12px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.metric-change.positive {
+    color: var(--positive);
+}
+
+.metric-change.negative {
+    color: var(--negative);
+}
+
+.metric-change.alert {
+    color: var(--negative);
+}
+
+/* ─── CHARTS SECTION ──────────────────────────────────────────── */
+.charts-section {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 24px;
+    align-items: stretch;
+    /* both cards same height */
+}
+
+.card {
+    background-color: var(--bg-card);
+    padding: 20px 22px;
+    border-radius: 10px;
+    border: 1px solid var(--border-card);
+    box-shadow: var(--shadow-sm);
+}
+
+.card h3 {
+    font-size: 14px;
+    color: var(--text-primary);
+    font-weight: 600;
+    margin-bottom: 18px;
+    letter-spacing: -0.1px;
+}
+
+/* ─── SALES CHART ─────────────────────────────────────────────── */
+
+/* chart-wrapper fills ALL remaining height inside the card */
+.chart-wrapper {
+    width: 100%;
+    flex: 1;
+    /* grow to fill card height */
+    min-height: 160px;
+    /* floor so it never collapses */
+}
+
+/* bars sits inside wrapper and fills it completely */
+.bars {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    width: 100%;
+    height: 100%;
+    gap: 8px;
+}
+
+.bar-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    /* pin bars to the bottom */
+    flex: 1;
+    gap: 6px;
+    /* do NOT set height here — bars fill via the px inline style */
+}
+
+.bar {
+    width: 100%;
+    background: linear-gradient(180deg, #313447 0%, #9DA6CC 100%);
+    border-radius: 4px 4px 0 0;
+    /* height is always set via inline style in JS (px value) */
+    transition: opacity 0.2s ease, box-shadow 0.2s ease;
+    cursor: pointer;
+    min-height: 4px;
+    flex-shrink: 0;
+    /* never let flexbox crush the bar */
+}
+
+.bar:hover {
+    opacity: 0.75;
+    box-shadow: 0 -2px 8px rgba(49, 52, 71, 0.18);
+}
+
+.bar-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 500;
+    flex-shrink: 0;
+    line-height: 1;
+}
+
+/* Make sales-card a flex column so chart-wrapper can grow */
+.sales-card {
+    display: flex;
+    flex-direction: column;
+}
+
+.alerts-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.alert-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.alert-item:last-child {
+    border-bottom: none;
+}
+
+.alert-content {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+}
+
+.alert-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background-color: #ef4444;
+    flex-shrink: 0;
+}
+
+.alert-dot.medium {
+    background-color: #f59e0b;
+}
+
+.alert-info {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.alert-name {
+    font-size: 13px;
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.alert-days {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.risk-badge {
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    border: 1px solid;
+}
+
+.risk-badge.high {
+    background-color: #fee2e2;
+    color: #dc2626;
+    border-color: #fca5a5;
+}
+
+.risk-badge.medium {
+    background-color: #fef3c7;
+    color: #d97706;
+    border-color: #fcd34d;
+}
+
+/* ─── TOP PRODUCTS ────────────────────────────────────────────── */
+.top-products-card {
+    grid-column: 1 / -1;
+}
+
+.products-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.products-table thead {
+    border-bottom: 1px solid var(--border-card);
+}
+
+.products-table th {
+    padding: 10px 14px;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.products-table td {
+    padding: 13px 14px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13.5px;
+    color: var(--text-primary);
+}
+
+.products-table tbody tr:hover td {
+    background-color: #fdf9f4;
+}
+
+.products-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.trend {
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    border: 1px solid;
+    display: inline-block;
+}
+
+.trend.positive {
+    background-color: #dcfce7;
+    color: #16a34a;
+    border-color: #bbf7d0;
+}
+
+.trend.negative {
+    background-color: #fee2e2;
+    color: #dc2626;
+    border-color: #fca5a5;
+}
+
+.trend.neutral {
+    background-color: #fef3c7;
+    color: #b45309;
+    border-color: #fcd34d;
+}
+
+/* ─── PRODUCTS PAGE ─────────────────────────────────────────── */
+.products-page {
+    disth: 6px;
+}
+
+.dashboard-content::-webkit-scrollbar-track {
+    background: var(--bg);
+}
+
+.dashboard-content::-webkit-scrollbar-thumb {
+    background: var(--border-card);
+    border-radius: 4px;
+}
+
+.dashboard-content::-webkit-scrollbar-thumb:hover {
+    background: var(--accent2);
+}
+
+.sidebar::-webkit-scrollbar {
+    width: 4px;
+}
+
+.sidebar::-webkit-scrollbar-track {
+    background: var(--sidebar);
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+    background: rgba(157, 166, 204, 0.3);
+    border-radius: 4px;
+}
+
+/* ─── RESPONSIVE ──────────────────────────────────────────────── */
