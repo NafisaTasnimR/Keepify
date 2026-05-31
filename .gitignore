@@ -24,3 +24,12 @@ build/
 # OS
 .DS_Store
 Thumbs.db
+
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# ML model files
+*.pkl
