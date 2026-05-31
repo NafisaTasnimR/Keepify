@@ -1,41 +1,149 @@
 const Insight = require('../models/Insight');
-const { getHighRiskCustomers } = require('./customerService');
+const { pool } = require('../config/postgres');
 
-// ─── Prescriptive rules engine ────────────────────────────────
-// Call this after your ML teammate pushes churn scores.
-const rebuildInsights = async () => {
-    const highRisk = await getHighRiskCustomers();
+const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
-    const freshInsights = highRisk.map((customer) => ({
-        type:        'follow_up',
-        customerId:  customer.id,
-        title:       `Follow up with ${customer.name}`,
-        description: `${customer.name} has a ${Math.round(customer.churnScore * 100)}% churn probability and may stop buying soon.`,
-        action:      customer.totalSpending > 5000
-            ? 'Offer a loyalty discount to retain this high-value customer'
-            : 'Send a re-engagement message or small discount offer',
-        priority:    'high',
-    }));
+const generateInsightForCustomer = async (customer) => {
+    const { id, name, churnScore, churnRisk,
+            totalOrders, totalSpending, lastActive } = customer;
 
-    // Wipe stale follow_up insights, insert fresh ones
-    await Insight.deleteMany({ type: 'follow_up' });
-    if (freshInsights.length) {
-        await Insight.insertMany(freshInsights);
+    console.log(`  Calling Groq for ${name}...`);
+
+    const recencyDays = lastActive
+        ? Math.floor((Date.now() - new Date(lastActive).getTime()) / (1000 * 60 * 60 * 24))
+        : null;
+
+    const prompt = `You are a CRM analyst. Given a customer profile, output ONE JSON recommendation.
+
+CUSTOMER:
+- Name: ${name}
+- Churn probability: ${Math.round((churnScore ?? 0) * 100)}%
+- Risk: ${churnRisk}
+- Orders: ${totalOrders}
+- Total spent: ৳${Number(totalSpending).toLocaleString()}
+- Inactive for: ${recencyDays !== null ? `${recencyDays} days` : 'never purchased'}
+
+RULES:
+- If risk is "low" AND spending > 5000: type="upsell", priority="low", suggest premium product
+- If risk is "low" AND orders > 10: type="upsell", priority="low", suggest loyalty reward
+- If risk is "medium": type="promotion", priority="medium", suggest a time-limited offer
+- If risk is "high" AND totalOrders === 0: type="promotion", priority="high", suggest first purchase incentive
+- If risk is "high" AND inactive > 45 days: type="follow_up", priority="high", suggest personal outreach
+- If risk is "high" AND inactive <= 45 days: type="follow_up", priority="high", suggest discount offer
+
+Write the description and action as advice TO the business owner ABOUT the customer, not as a message to the customer.
+Use the customer's name and specific numbers in the description.
+
+OUTPUT only this JSON, no markdown:
+{"type":"...","title":"...","description":"...","action":"...","priority":"..."}`;
+
+    let raw;
+    try {
+        const response = await fetch(GROQ_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type':  'application/json',
+                'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
+            },
+            body: JSON.stringify({
+                model:       'llama-3.1-8b-instant',
+                messages:    [{ role: 'user', content: prompt }],
+                temperature: 0.4,
+                max_tokens:  300,
+            }),
+        });
+
+        if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err?.error?.message || `HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+        raw = data.choices?.[0]?.message?.content?.trim();
+        console.log(`  Groq response for ${name}:`, raw?.substring(0, 80));
+    } catch (err) {
+        console.error(`  Groq API call failed for ${name}:`, err.message);
+        return null;
     }
 
-    return freshInsights.length;
+    if (!raw) {
+        console.error(`  Empty response for ${name}`);
+        return null;
+    }
+
+    const clean = raw.replace(/```json|```/g, '').trim();
+
+    let parsed;
+    try {
+        parsed = JSON.parse(clean);
+    } catch {
+        console.error(`  Failed to parse response for ${name}:`, raw);
+        return null;
+    }
+
+    return {
+        type:        parsed.type        || 'follow_up',
+        title:       parsed.title       || `Insight for ${name}`,
+        description: parsed.description || '',
+        action:      parsed.action      || '',
+        priority:    parsed.priority    || churnRisk || 'medium',
+        customerId:  id,
+    };
+};
+
+const rebuildInsights = async () => {
+    const { rows } = await pool.query(
+        `SELECT id, name,
+                churn_score    AS "churnScore",
+                churn_risk     AS "churnRisk",
+                total_orders   AS "totalOrders",
+                total_spending AS "totalSpending",
+                last_active    AS "lastActive"
+         FROM customers
+         WHERE churn_risk IS NOT NULL`
+    );
+
+    console.log(`Found ${rows.length} customers to generate insights for`);
+    rows.forEach(r => console.log(`  - ${r.name}, risk: ${r.churnRisk}`));
+
+    const results = [];
+    const batchSize = 5;
+
+    for (let i = 0; i < rows.length; i += batchSize) {
+        const batch = rows.slice(i, i + batchSize);
+        const settled = await Promise.allSettled(
+            batch.map(r => generateInsightForCustomer(r))
+        );
+        settled.forEach((r, idx) => {
+            if (r.status === 'fulfilled' && r.value) {
+                console.log(`✓ ${batch[idx].name}`);
+                results.push(r.value);
+            } else if (r.status === 'rejected') {
+                console.error(`✗ ${batch[idx].name}:`, r.reason?.message);
+            } else {
+                console.error(`✗ ${batch[idx].name}: returned null`);
+            }
+        });
+
+        if (i + batchSize < rows.length) {
+            await new Promise(res => setTimeout(res, 1000));
+        }
+    }
+
+    console.log(`Saving ${results.length} insights to MongoDB`);
+    await Insight.deleteMany({});
+    if (results.length) await Insight.insertMany(results);
+
+    return results.length;
 };
 
 const listInsights = async ({ type, priority } = {}) => {
     const filter = { dismissed: false };
     if (type)     filter.type     = type;
     if (priority) filter.priority = priority;
-
-    // Sort: high priority first, then newest
     return Insight.find(filter).sort({ priority: -1, createdAt: -1 }).lean();
 };
 
-// Get all insights linked to one customer (for the detail drawer)
 const getInsightsByCustomer = async (customerId) => {
     return Insight.find({ customerId, dismissed: false }).lean();
 };
