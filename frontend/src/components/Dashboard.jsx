@@ -205,13 +205,10 @@ const Dashboard = () => {
                         <AnalyticsPage />
                     ) : activeMenu === 'Products' ? (
                         <ProductsView />
-<<<<<<< HEAD
                     ) : activeMenu === 'Orders' ? (
                         <OrdersView />
-=======
                     ) : activeMenu === 'Customers' ? (
                         <CustomerPage />
->>>>>>> c3562e51560982aba487c3bce6a7fafa210d55d1
                     ) : (
                         <>
                             {/* Metric cards */}
