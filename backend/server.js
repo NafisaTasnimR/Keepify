@@ -6,12 +6,14 @@ const productRoutes = require('./routes/productRoutes');
 const analyticsRoutes = require('./routes/analyticsRoutes');
 const customerRoutes = require('./routes/customerRoutes');
 const insightRoutes = require('./routes/insightRoutes');
+const orderRoutes = require('./routes/orderRoutes');
 const { notFound, errorHandler } = require('./middlewares/errorHandler');
 const {
     ensureProductsTable,
     ensureProductImagesTable,
 } = require('./services/productService');
 const { ensureCustomersTable } = require('./services/customerService');
+const { ensureOrdersTable } = require('./services/orderService');
 
 dotenv.config();
 
@@ -28,6 +30,7 @@ app.use('/api/products', productRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/customers', customerRoutes);
 app.use('/api/insights', insightRoutes);
+app.use('/api/orders', orderRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
@@ -39,6 +42,7 @@ const startServer = async () => {
         await ensureProductsTable();
         await ensureProductImagesTable();
         await ensureCustomersTable();
+        await ensureOrdersTable();
 
         const port = process.env.PORT || 5000;
         app.listen(port, () => {

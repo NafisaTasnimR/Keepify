@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import Sidebar from './Sidebar';
 import ProductsView from './ProductsView';
+import OrdersView from './OrdersView';
 import AnalyticsPage from './AnalyticsPage';
 import CustomerPage from './CustomerPage';
 import './Dashboard.css';
@@ -204,6 +205,8 @@ const Dashboard = () => {
                         <AnalyticsPage />
                     ) : activeMenu === 'Products' ? (
                         <ProductsView />
+                    ) : activeMenu === 'Orders' ? (
+                        <OrdersView />
                     ) : activeMenu === 'Customers' ? (
                         <CustomerPage />
                     ) : (

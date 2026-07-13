@@ -243,7 +243,9 @@ const ProductsView = () => {
             )}
             <ConfirmDeleteModal
                 isOpen={Boolean(deleteTarget)}
-                productName={deleteTarget?.product?.name}
+                title="Delete product"
+                itemName={deleteTarget?.product?.name}
+                itemLabel="product"
                 onConfirm={handleConfirmDelete}
                 onCancel={handleCancelDelete}
                 isDeleting={isDeleting}
