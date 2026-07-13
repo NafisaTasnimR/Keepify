@@ -3,6 +3,7 @@ import Sidebar from './Sidebar';
 import ProductsView from './ProductsView';
 import OrdersView from './OrdersView';
 import AnalyticsPage from './AnalyticsPage';
+import CustomerPage from './CustomerPage';
 import './Dashboard.css';
 const EMPTY_SALES_DATA = [
     { day: 'Mon', value: 0 },
@@ -204,8 +205,13 @@ const Dashboard = () => {
                         <AnalyticsPage />
                     ) : activeMenu === 'Products' ? (
                         <ProductsView />
+<<<<<<< HEAD
                     ) : activeMenu === 'Orders' ? (
                         <OrdersView />
+=======
+                    ) : activeMenu === 'Customers' ? (
+                        <CustomerPage />
+>>>>>>> c3562e51560982aba487c3bce6a7fafa210d55d1
                     ) : (
                         <>
                             {/* Metric cards */}

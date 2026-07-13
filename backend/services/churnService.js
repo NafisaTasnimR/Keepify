@@ -1,20 +1,48 @@
-const axios = require('axios');
-const { getCustomerOrderStats } = require('./orderService');
+const { getCustomerById, saveChurnScore } = require('./customerService');
+const { rebuildInsights } = require('./insightService');
 
-const FLASK_URL = process.env.FLASK_URL || 'http://localhost:5001';
+const ML_SERVICE_URL = process.env.ML_SERVICE_URL || 'http://localhost:5001';
 
-const predictChurn = async (customerEmail) => {
-    const features = await getCustomerOrderStats(customerEmail);
+const scoreCustomer = async (customerId) => {
+    const customer = await getCustomerById(customerId);
+    if (!customer) return null;
 
-    const response = await axios.post(`${FLASK_URL}/predict`, features, {
-        timeout: 5000,
+    // Recency: days since last_active (same as notebook's InvoiceDate recency)
+    const recencyDays = customer.lastActive
+        ? Math.floor((Date.now() - new Date(customer.lastActive).getTime()) / (1000 * 60 * 60 * 24))
+        : 999;  // never purchased = very high recency = high churn risk
+
+    const response = await fetch(`${ML_SERVICE_URL}/predict`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            total_orders:   customer.totalOrders,
+            total_spending: customer.totalSpending,
+            recency_days:   recencyDays,
+        }),
     });
 
-    return {
-        features,
-        churnScore: response.data.churnScore,
-        riskLevel: response.data.riskLevel,
-    };
+    if (!response.ok) {
+        throw new Error(`ML service returned ${response.status}`);
+    }
+
+    const { score } = await response.json();
+    return saveChurnScore(customerId, score);
 };
 
-module.exports = { predictChurn };
+const scoreAllCustomers = async () => {
+    const { pool } = require('../config/postgres');
+    const { rows } = await pool.query('SELECT id FROM customers');
+
+    const results = await Promise.allSettled(
+        rows.map((r) => scoreCustomer(r.id))
+    );
+
+    await rebuildInsights();
+
+    const failed  = results.filter((r) => r.status === 'rejected').length;
+    const success = results.filter((r) => r.status === 'fulfilled').length;
+    return { total: rows.length, success, failed };
+};
+
+module.exports = { scoreCustomer, scoreAllCustomers };

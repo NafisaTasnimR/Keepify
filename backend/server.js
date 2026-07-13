@@ -4,14 +4,14 @@ const connectDB = require('./config/db.js');
 const { connectPostgres } = require('./config/postgres');
 const productRoutes = require('./routes/productRoutes');
 const analyticsRoutes = require('./routes/analyticsRoutes');
-const orderRoutes = require('./routes/orderRoutes');
-const churnRoutes = require('./routes/churnRoutes');
+const customerRoutes = require('./routes/customerRoutes');
+const insightRoutes = require('./routes/insightRoutes');
 const { notFound, errorHandler } = require('./middlewares/errorHandler');
 const {
     ensureProductsTable,
     ensureProductImagesTable,
 } = require('./services/productService');
-const { ensureOrdersTable } = require('./services/orderService');
+const { ensureCustomersTable } = require('./services/customerService');
 
 dotenv.config();
 
@@ -26,8 +26,8 @@ app.get('/', (req, res) => {
 
 app.use('/api/products', productRoutes);
 app.use('/api/analytics', analyticsRoutes);
-app.use('/api/orders', orderRoutes);
-app.use('/api/churn', churnRoutes);
+app.use('/api/customers', customerRoutes);
+app.use('/api/insights', insightRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
@@ -38,7 +38,7 @@ const startServer = async () => {
         await connectPostgres();
         await ensureProductsTable();
         await ensureProductImagesTable();
-        await ensureOrdersTable();
+        await ensureCustomersTable();
 
         const port = process.env.PORT || 5000;
         app.listen(port, () => {
