@@ -1,0 +1,231 @@
+/* ─── ORDERS PAGE ───────────────────────────────────────────── */
+.orders-page {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.orders-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.orders-filters {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    flex: 1;
+}
+
+.filter-input {
+    padding: 8px 12px;
+    border: 1px solid var(--border-card);
+    border-radius: 8px;
+    font-size: 13px;
+    font-family: inherit;
+    color: var(--text-primary);
+    background-color: #ffffff;
+}
+
+.filter-input:focus {
+    outline: none;
+    border-color: var(--accent2);
+    box-shadow: 0 0 0 3px rgba(157, 166, 204, 0.1);
+}
+
+.orders-toolbar-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.card {
+    background-color: var(--bg-card);
+    padding: 20px 22px;
+    border-radius: 10px;
+    border: 1px solid var(--border-card);
+    box-shadow: var(--shadow-sm);
+}
+
+.orders-card {
+    padding: 0;
+    overflow-x: auto;
+}
+
+.add-order-button,
+.upload-csv-button {
+    background-color: var(--sidebar);
+    color: #f0f2fa;
+    border: 1px solid rgba(157, 166, 204, 0.35);
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+    white-space: nowrap;
+}
+
+.upload-csv-button {
+    background-color: transparent;
+    color: var(--text-primary);
+    border-color: var(--border);
+}
+
+.add-order-button:hover,
+.upload-csv-button:hover {
+    background-color: var(--sidebar-hover);
+    border-color: rgba(157, 166, 204, 0.6);
+}
+
+.upload-csv-button:hover {
+    color: #f0f2fa;
+}
+
+.orders-page-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 720px;
+}
+
+.orders-page-table thead {
+    border-bottom: 1px solid var(--border-card);
+}
+
+.orders-page-table th {
+    padding: 10px 14px;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.orders-page-table td {
+    padding: 13px 14px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13.5px;
+    color: var(--text-primary);
+}
+
+.orders-page-table tbody tr:hover td {
+    background-color: #fdf9f4;
+}
+
+.orders-page-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.order-status {
+    text-transform: capitalize;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+}
+
+.order-status.pending {
+    color: #92400e;
+    background-color: rgba(217, 119, 6, 0.12);
+}
+
+.order-status.completed {
+    color: #166534;
+    background-color: rgba(22, 163, 74, 0.12);
+}
+
+.order-status.cancelled {
+    color: var(--negative);
+    background-color: rgba(220, 38, 38, 0.12);
+}
+
+.action-buttons {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.edit-order-btn {
+    background-color: transparent;
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.edit-order-btn:hover {
+    background-color: var(--accent);
+    color: #f0f2fa;
+    border-color: var(--accent);
+}
+
+.delete-order-btn {
+    background-color: transparent;
+    color: var(--negative);
+    border: 1px solid rgba(220, 38, 38, 0.4);
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.delete-order-btn:hover {
+    background-color: #dc2626;
+    color: #fff;
+    border-color: #dc2626;
+}
+
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.empty-state-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.empty-state-text {
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.empty-state-actions {
+    margin-top: 8px;
+}
+
+.empty-state.error {
+    border-color: rgba(220, 38, 38, 0.3);
+    background-color: rgba(254, 226, 226, 0.35);
+}
+
+/* ─── RESPONSIVE ──────────────────────────────────────────────── */
+@media (max-width: 768px) {
+    .orders-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .orders-toolbar-actions {
+        width: 100%;
+    }
+
+    .add-order-button,
+    .upload-csv-button {
+        flex: 1;
+    }
+}

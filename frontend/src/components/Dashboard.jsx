@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import Sidebar from './Sidebar';
 import ProductsView from './ProductsView';
+import OrdersView from './OrdersView';
 import AnalyticsPage from './AnalyticsPage';
 import './Dashboard.css';
 const EMPTY_SALES_DATA = [
@@ -203,6 +204,8 @@ const Dashboard = () => {
                         <AnalyticsPage />
                     ) : activeMenu === 'Products' ? (
                         <ProductsView />
+                    ) : activeMenu === 'Orders' ? (
+                        <OrdersView />
                     ) : (
                         <>
                             {/* Metric cards */}

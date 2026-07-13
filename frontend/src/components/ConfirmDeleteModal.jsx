@@ -3,7 +3,9 @@ import './ConfirmDeleteModal.css';
 
 const ConfirmDeleteModal = ({
     isOpen,
-    productName,
+    title = 'Delete product',
+    itemName,
+    itemLabel = 'product',
     onConfirm,
     onCancel,
     isDeleting = false,
@@ -16,11 +18,11 @@ const ConfirmDeleteModal = ({
     return (
         <div className="confirm-delete-overlay" role="dialog" aria-modal="true">
             <div className="confirm-delete-container">
-                <h2 className="confirm-delete-title">Delete product</h2>
+                <h2 className="confirm-delete-title">{title}</h2>
                 <p className="confirm-delete-text">
                     Are you sure you want to delete
                     <span className="confirm-delete-name">
-                        {productName ? ` "${productName}"` : ' this product'}
+                        {itemName ? ` "${itemName}"` : ` this ${itemLabel}`}
                     </span>
                     ? This action cannot be undone.
                 </p>
