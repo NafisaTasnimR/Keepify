@@ -23,15 +23,30 @@ const formatDateLabel = (value) => {
     return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 };
 
+const formatEntityLabel = (id, name, fallback) => {
+    if (id === undefined || id === null || id === '') {
+        return name || fallback;
+    }
+
+    return name ? `#${id} ${name}` : `#${id}`;
+};
+
 const normalizeOrder = (order) => ({
     id: order.id,
-    customerName: order.customerName || 'Unknown customer',
-    customerEmail: order.customerEmail ?? '',
+    customerId: order.customerId ?? null,
+    customerName: order.customerName || null,
+    customerLabel: formatEntityLabel(order.customerId, order.customerName, 'Unknown customer'),
+    productId: order.productId ?? null,
+    productName: order.productName || null,
+    productLabel: formatEntityLabel(order.productId, order.productName, 'Unknown product'),
+    quantity: Number(order.quantity ?? 1),
+    quantityLabel: Number(order.quantity ?? 1).toLocaleString(),
     orderDate: order.orderDate,
     orderDateLabel: formatDateLabel(order.orderDate),
     amount: Number(order.amount ?? 0),
     amountLabel: formatAmountLabel(order.amount),
     status: order.status ?? 'pending',
+    category: order.category ?? '',
 });
 
 const EMPTY_FILTERS = { customer: '', startDate: '', endDate: '' };
@@ -95,11 +110,13 @@ const OrdersView = () => {
 
     const handleSaveOrder = async (formData) => {
         const payload = {
-            customerName: formData.customerName?.trim(),
-            customerEmail: formData.customerEmail?.trim() || null,
-            orderDate: formData.orderDate || null,
+            customerId: Number(formData.customerId) || null,
+            productId: Number(formData.productId) || null,
+            quantity: Number(formData.quantity) || null,
             amount: Number(formData.amount) || 0,
+            orderDate: formData.orderDate || null,
             status: formData.status || 'pending',
+            category: formData.category?.trim() || null,
         };
 
         setOrdersError('');
@@ -218,7 +235,7 @@ const OrdersView = () => {
             <ConfirmDeleteModal
                 isOpen={Boolean(deleteTarget)}
                 title="Delete order"
-                itemName={deleteTarget?.order?.customerName}
+                itemName={deleteTarget?.order?.customerLabel || deleteTarget?.order?.productLabel || `Order #${deleteTarget?.order?.id}`}
                 itemLabel="order"
                 onConfirm={handleConfirmDelete}
                 onCancel={handleCancelDelete}

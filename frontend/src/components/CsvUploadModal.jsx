@@ -80,7 +80,7 @@ const CsvUploadModal = ({ isOpen, onClose, onUploaded }) => {
             <div className="csv-upload-container">
                 <h2 className="csv-upload-title">Upload orders CSV</h2>
                 <p className="csv-upload-text">
-                    Columns: customer_name, customer_email, order_date, amount, status
+                    Columns: customer_id, product_id, quantity, amount, order_date, status
                 </p>
 
                 <input
