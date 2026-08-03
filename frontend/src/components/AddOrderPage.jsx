@@ -1,6 +1,16 @@
 import React, { useState } from 'react';
 import './AddOrderPage.css';
 
+const toDateInputValue = (value) => {
+    if (!value) {
+        return new Date().toISOString().slice(0, 10);
+    }
+    const date = new Date(value);
+    return Number.isNaN(date.getTime())
+        ? new Date().toISOString().slice(0, 10)
+        : date.toISOString().slice(0, 10);
+};
+
 const AddOrderPage = ({
     order = null,
     onSave,
@@ -8,13 +18,15 @@ const AddOrderPage = ({
     isEditing = false,
 }) => {
     const [formData, setFormData] = useState(
-        order || {
-            customerName: '',
-            customerEmail: '',
-            orderDate: new Date().toISOString().slice(0, 10),
-            amount: '',
-            status: 'pending',
-        }
+        order
+            ? { ...order, orderDate: toDateInputValue(order.orderDate) }
+            : {
+                customerName: '',
+                customerEmail: '',
+                orderDate: new Date().toISOString().slice(0, 10),
+                amount: '',
+                status: 'pending',
+            }
     );
 
     const handleInputChange = (e) => {
