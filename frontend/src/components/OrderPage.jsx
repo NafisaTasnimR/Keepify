@@ -21,7 +21,7 @@ const OrderPage = ({
                     <input
                         type="text"
                         className="filter-input"
-                        placeholder="Filter by customer name or email"
+                        placeholder="Filter by customer or product"
                         value={filters.customer}
                         onChange={(e) => onFilterChange({ ...filters, customer: e.target.value })}
                     />
@@ -75,10 +75,12 @@ const OrderPage = ({
                     <table className="orders-page-table">
                         <thead>
                             <tr>
-                                <th>Customer</th>
-                                <th>Email</th>
-                                <th>Date</th>
+                                <th>Customer Name</th>
+                                <th>Customer Email</th>
+                                <th>Product Name</th>
+                                <th>Category</th>
                                 <th>Amount</th>
+                                <th>Date</th>
                                 <th>Status</th>
                                 <th>Action</th>
                             </tr>
@@ -86,10 +88,12 @@ const OrderPage = ({
                         <tbody>
                             {orders.map((order, i) => (
                                 <tr key={order.id ?? i}>
-                                    <td>{order.customerName}</td>
+                                    <td>{order.customerName || '—'}</td>
                                     <td>{order.customerEmail || '—'}</td>
-                                    <td>{order.orderDateLabel}</td>
-                                    <td>{order.amountLabel}</td>
+                                    <td>{order.productName || '—'}</td>
+                                    <td>{order.productCategory || '—'}</td>
+                                    <td>{order.amountLabel || order.amount || '—'}</td>
+                                    <td>{order.orderDateLabel || order.orderDate || '—'}</td>
                                     <td>
                                         <span className={`order-status ${order.status}`}>
                                             {order.status}

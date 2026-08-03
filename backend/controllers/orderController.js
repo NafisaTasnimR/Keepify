@@ -7,6 +7,7 @@ const {
     deleteOrder,
     bulkInsertOrders,
 } = require('../services/orderService');
+const { clearAnalyticsCache } = require('../services/analyticsService');
 
 const parseNumber = (value) => {
     if (value === undefined || value === null || value === '') {
@@ -17,21 +18,48 @@ const parseNumber = (value) => {
     return Number.isNaN(parsed) ? null : parsed;
 };
 
+const parseInteger = (value) => {
+    if (value === undefined || value === null || value === '') {
+        return undefined;
+    }
+
+    const parsed = Number(value);
+    return Number.isInteger(parsed) ? parsed : null;
+};
+
 const isValidDate = (value) => !Number.isNaN(new Date(value).getTime());
 
 const validateOrderPayload = (payload, isUpdate = false) => {
     const errors = [];
 
-    if (!isUpdate && (!payload.customerName || typeof payload.customerName !== 'string')) {
-        errors.push('customerName is required');
+    if (!isUpdate && (payload.customerId === undefined || payload.customerId === null)) {
+        errors.push('customerId is required');
     }
 
-    if (payload.customerName !== undefined && typeof payload.customerName !== 'string') {
-        errors.push('customerName must be a string');
+    if (payload.customerId !== undefined) {
+        if (!Number.isInteger(payload.customerId) || payload.customerId <= 0) {
+            errors.push('customerId must be a positive integer');
+        }
     }
 
-    if (payload.customerEmail !== undefined && payload.customerEmail !== null && typeof payload.customerEmail !== 'string') {
-        errors.push('customerEmail must be a string');
+    if (!isUpdate && (payload.productId === undefined || payload.productId === null)) {
+        errors.push('productId is required');
+    }
+
+    if (payload.productId !== undefined) {
+        if (!Number.isInteger(payload.productId) || payload.productId <= 0) {
+            errors.push('productId must be a positive integer');
+        }
+    }
+
+    if (!isUpdate && (payload.quantity === undefined || payload.quantity === null)) {
+        errors.push('quantity is required');
+    }
+
+    if (payload.quantity !== undefined) {
+        if (!Number.isInteger(payload.quantity) || payload.quantity <= 0) {
+            errors.push('quantity must be a positive integer');
+        }
     }
 
     if (payload.orderDate !== undefined && payload.orderDate !== null && !isValidDate(payload.orderDate)) {
@@ -50,6 +78,10 @@ const validateOrderPayload = (payload, isUpdate = false) => {
         if (!allowedStatus.has(payload.status)) {
             errors.push('status must be pending, completed, or cancelled');
         }
+    }
+
+    if (payload.category !== undefined && payload.category !== null && typeof payload.category !== 'string') {
+        errors.push('category must be a string');
     }
 
     return errors;
@@ -108,11 +140,13 @@ const getOrderByIdHandler = async (req, res, next) => {
 const createOrderHandler = async (req, res, next) => {
     try {
         const payload = {
-            customerName: req.body.customerName,
-            customerEmail: req.body.customerEmail || null,
+            customerId: parseInteger(req.body.customerId),
+            productId: parseInteger(req.body.productId),
+            quantity: parseInteger(req.body.quantity),
+            amount: parseNumber(req.body.amount),
             orderDate: req.body.orderDate || null,
-            amount: parseNumber(req.body.amount) ?? 0,
             status: req.body.status || 'pending',
+            category: req.body.category ?? null,
         };
 
         const errors = validateOrderPayload(payload);
@@ -137,11 +171,13 @@ const updateOrderHandler = async (req, res, next) => {
         }
 
         const payload = {
-            customerName: req.body.customerName,
-            customerEmail: req.body.customerEmail,
-            orderDate: req.body.orderDate,
+            customerId: parseInteger(req.body.customerId),
+            productId: parseInteger(req.body.productId),
+            quantity: parseInteger(req.body.quantity),
             amount: parseNumber(req.body.amount),
+            orderDate: req.body.orderDate,
             status: req.body.status,
+            category: req.body.category,
         };
 
         const hasUpdates = Object.values(payload).some((value) => value !== undefined);
@@ -211,11 +247,16 @@ const uploadCsvHandler = async (req, res, next) => {
         }
 
         const rows = records.map((record) => ({
-            customerName: record.customer_name || record.customerName,
-            customerEmail: record.customer_email || record.customerEmail || null,
+            customerId: parseInteger(record.customer_id || record.customerId),
+            productId: parseInteger(record.product_id || record.productId),
+            quantity: (() => {
+                const parsedQuantity = parseInteger(record.quantity);
+                return parsedQuantity === undefined ? 1 : parsedQuantity;
+            })(),
+            amount: parseNumber(record.amount),
             orderDate: record.order_date || record.orderDate || null,
-            amount: parseNumber(record.amount) ?? 0,
             status: record.status || 'pending',
+            category: record.category || record.categories || null,
         }));
 
         const rowErrors = [];
@@ -228,6 +269,8 @@ const uploadCsvHandler = async (req, res, next) => {
 
         const validRows = rows.filter((_, index) => !rowErrors.some((e) => e.row === index + 1));
         const result = await bulkInsertOrders(validRows);
+
+        await clearAnalyticsCache();
 
         res.json({
             imported: result.imported,
