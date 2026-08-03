@@ -1,10 +1,19 @@
 const AnalyticsSnapshot = require('../models/AnalyticsSnapshot');
-const Sale = require('../models/Sale');
 const { pool } = require('../config/postgres');
 
 const DEFAULT_CACHE_TTL_SECONDS = Number(
     process.env.ANALYTICS_CACHE_TTL_SECONDS || 900
 );
+
+const ANALYTICS_SOURCE_SQL = `
+    SELECT
+        order_date,
+        amount,
+        quantity,
+        category,
+        status
+    FROM order_analytics
+`;
 
 const buildCacheKey = (prefix, options) => {
     const { startDate, endDate, interval, limit } = options;
@@ -41,80 +50,84 @@ const setCachedSnapshot = async (key, payload, ttlSeconds = DEFAULT_CACHE_TTL_SE
     );
 };
 
+const clearAnalyticsCache = async () => {
+    await AnalyticsSnapshot.deleteMany({});
+};
+
 const buildMatchStage = (startDate, endDate) => ({
-    createdAt: {
+    order_date: {
         $gte: startDate,
         $lte: endDate,
     },
 });
 
 const fetchTrends = async ({ startDate, endDate, interval }) => {
-    const pipeline = [
-        { $match: buildMatchStage(startDate, endDate) },
-        {
-            $group: {
-                _id: {
-                    $dateTrunc: {
-                        date: '$createdAt',
-                        unit: interval,
-                    },
-                },
-                revenue: { $sum: '$amount' },
-                orders: { $sum: 1 },
-            },
-        },
-        { $sort: { _id: 1 } },
-    ];
+    const bucketExpression =
+        interval === 'week'
+            ? `DATE_TRUNC('week', order_date::timestamp)`
+            : interval === 'month'
+                ? `DATE_TRUNC('month', order_date::timestamp)`
+                : `DATE_TRUNC('day', order_date::timestamp)`;
 
-    const results = await Sale.aggregate(pipeline);
-    return results.map((item) => ({
-        date: item._id.toISOString(),
+    const result = await pool.query(
+        `SELECT
+            ${bucketExpression} AS bucket,
+            COALESCE(SUM(amount), 0) AS revenue,
+            COUNT(*)::int AS orders
+         FROM order_analytics
+         WHERE order_date >= $1::date AND order_date <= $2::date
+         GROUP BY bucket
+         ORDER BY bucket ASC`,
+        [startDate.toISOString().slice(0, 10), endDate.toISOString().slice(0, 10)]
+    );
+
+    return result.rows.map((item) => ({
+        date: new Date(item.bucket).toISOString(),
         revenue: Number(item.revenue || 0),
         orders: Number(item.orders || 0),
     }));
 };
 
 const fetchPeaks = async ({ startDate, endDate, interval, limit }) => {
-    const pipeline = [
-        { $match: buildMatchStage(startDate, endDate) },
-        {
-            $group: {
-                _id: {
-                    $dateTrunc: {
-                        date: '$createdAt',
-                        unit: interval,
-                    },
-                },
-                revenue: { $sum: '$amount' },
-                orders: { $sum: 1 },
-            },
-        },
-        { $sort: { revenue: -1 } },
-        { $limit: limit },
-    ];
+    const bucketExpression =
+        interval === 'week'
+            ? `DATE_TRUNC('week', order_date::timestamp)`
+            : interval === 'month'
+                ? `DATE_TRUNC('month', order_date::timestamp)`
+                : `DATE_TRUNC('day', order_date::timestamp)`;
 
-    const results = await Sale.aggregate(pipeline);
-    return results.map((item) => ({
-        date: item._id.toISOString(),
+    const result = await pool.query(
+        `SELECT
+            ${bucketExpression} AS bucket,
+            COALESCE(SUM(amount), 0) AS revenue,
+            COUNT(*)::int AS orders
+         FROM order_analytics
+         WHERE order_date >= $1::date AND order_date <= $2::date
+         GROUP BY bucket
+         ORDER BY revenue DESC
+         LIMIT $3`,
+        [startDate.toISOString().slice(0, 10), endDate.toISOString().slice(0, 10), limit]
+    );
+
+    return result.rows.map((item) => ({
+        date: new Date(item.bucket).toISOString(),
         revenue: Number(item.revenue || 0),
         orders: Number(item.orders || 0),
     }));
 };
 
 const fetchKpis = async ({ startDate, endDate }) => {
-    const pipeline = [
-        { $match: buildMatchStage(startDate, endDate) },
-        {
-            $group: {
-                _id: null,
-                totalRevenue: { $sum: '$amount' },
-                totalOrders: { $sum: 1 },
-                avgOrderValue: { $avg: '$amount' },
-            },
-        },
-    ];
+    const { rows } = await pool.query(
+        `SELECT
+            COALESCE(SUM(amount), 0) AS total_revenue,
+            COUNT(*)::int AS total_orders,
+            COALESCE(AVG(amount), 0) AS avg_order_value
+         FROM order_analytics
+         WHERE order_date >= $1::date AND order_date <= $2::date`,
+        [startDate.toISOString().slice(0, 10), endDate.toISOString().slice(0, 10)]
+    );
 
-    const [result] = await Sale.aggregate(pipeline);
+    const result = rows[0];
 
     if (!result) {
         return {
@@ -125,67 +138,32 @@ const fetchKpis = async ({ startDate, endDate }) => {
     }
 
     return {
-        totalRevenue: Number(result.totalRevenue || 0),
-        totalOrders: Number(result.totalOrders || 0),
-        avgOrderValue: Number(result.avgOrderValue || 0),
+        totalRevenue: Number(result.total_revenue || 0),
+        totalOrders: Number(result.total_orders || 0),
+        avgOrderValue: Number(result.avg_order_value || 0),
     };
 };
 
 const fetchCategoryBreakdown = async ({ startDate, endDate }) => {
-    const salesPipeline = [
-        { $match: buildMatchStage(startDate, endDate) },
-        {
-            $group: {
-                _id: '$productId',
-                revenue: { $sum: '$amount' },
-                orders: { $sum: 1 },
-            },
-        },
-        { $sort: { revenue: -1 } },
-    ];
+    const { rows } = await pool.query(
+        `SELECT
+            COALESCE(category, 'Uncategorized') AS category,
+            COALESCE(SUM(amount), 0) AS revenue,
+            COUNT(*)::int AS orders
+         FROM order_analytics
+         WHERE order_date >= $1::date AND order_date <= $2::date
+         GROUP BY COALESCE(category, 'Uncategorized')
+         ORDER BY revenue DESC`,
+        [startDate.toISOString().slice(0, 10), endDate.toISOString().slice(0, 10)]
+    );
 
-    const [salesByProduct, productsResult] = await Promise.all([
-        Sale.aggregate(salesPipeline),
-        pool.query('SELECT id::text AS id, sku, category FROM products'),
-    ]);
+    const totalRevenue = rows.reduce((sum, item) => sum + Number(item.revenue || 0), 0);
 
-    const categoryLookup = new Map();
-
-    productsResult.rows.forEach((product) => {
-        const category = product.category || 'Uncategorized';
-
-        if (product.id) {
-            categoryLookup.set(String(product.id), category);
-        }
-
-        if (product.sku) {
-            categoryLookup.set(String(product.sku), category);
-        }
-    });
-
-    const categoryTotals = new Map();
-
-    salesByProduct.forEach((item) => {
-        const categoryKey = categoryLookup.get(String(item._id)) || 'Uncategorized';
-        const current = categoryTotals.get(categoryKey) || {
-            category: categoryKey,
-            revenue: 0,
-            orders: 0,
-        };
-
-        current.revenue += Number(item.revenue || 0);
-        current.orders += Number(item.orders || 0);
-        categoryTotals.set(categoryKey, current);
-    });
-
-    const totals = Array.from(categoryTotals.values()).sort((a, b) => b.revenue - a.revenue);
-    const totalRevenue = totals.reduce((sum, item) => sum + item.revenue, 0);
-
-    return totals.map((item) => ({
+    return rows.map((item) => ({
         category: item.category,
         revenue: Number(item.revenue || 0),
         orders: Number(item.orders || 0),
-        percentage: totalRevenue > 0 ? Number(((item.revenue / totalRevenue) * 100).toFixed(1)) : 0,
+        percentage: totalRevenue > 0 ? Number(((Number(item.revenue || 0) / totalRevenue) * 100).toFixed(1)) : 0,
     }));
 };
 
