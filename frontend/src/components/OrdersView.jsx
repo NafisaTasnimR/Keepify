@@ -35,9 +35,12 @@ const normalizeOrder = (order) => ({
     id: order.id,
     customerId: order.customerId ?? null,
     customerName: order.customerName || null,
+    customerEmail: order.customerEmail || null,
     customerLabel: formatEntityLabel(order.customerId, order.customerName, 'Unknown customer'),
     productId: order.productId ?? null,
     productName: order.productName || null,
+    productSku: order.productSku || null,
+    productCategory: order.productCategory || null,
     productLabel: formatEntityLabel(order.productId, order.productName, 'Unknown product'),
     quantity: Number(order.quantity ?? 1),
     quantityLabel: Number(order.quantity ?? 1).toLocaleString(),
@@ -59,6 +62,7 @@ const OrdersView = () => {
 
     const [showOrderForm, setShowOrderForm] = useState(false);
     const [editingOrderIndex, setEditingOrderIndex] = useState(null);
+    const [formError, setFormError] = useState('');
 
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [isDeleting, setIsDeleting] = useState(false);
@@ -98,13 +102,13 @@ const OrdersView = () => {
 
     const handleAddOrder = () => {
         setEditingOrderIndex(null);
-        setOrdersError('');
+        setFormError('');
         setShowOrderForm(true);
     };
 
     const handleEditOrder = (index) => {
         setEditingOrderIndex(index);
-        setOrdersError('');
+        setFormError('');
         setShowOrderForm(true);
     };
 
@@ -131,7 +135,8 @@ const OrdersView = () => {
                 });
 
                 if (!response.ok) {
-                    throw new Error('Failed to update order');
+                    const data = await response.json().catch(() => ({}));
+                    throw new Error(data.message || 'Failed to update order');
                 }
 
                 const updated = normalizeOrder(await response.json());
@@ -146,7 +151,8 @@ const OrdersView = () => {
                 });
 
                 if (!response.ok) {
-                    throw new Error('Failed to create order');
+                    const data = await response.json().catch(() => ({}));
+                    throw new Error(data.message || 'Failed to create order');
                 }
 
                 const created = normalizeOrder(await response.json());
@@ -155,14 +161,16 @@ const OrdersView = () => {
 
             setShowOrderForm(false);
             setEditingOrderIndex(null);
+            setFormError('');
         } catch (error) {
-            setOrdersError('Unable to save order right now.');
+            setFormError(error.message || 'Unable to save order right now.');
         }
     };
 
     const handleCancelForm = () => {
         setShowOrderForm(false);
         setEditingOrderIndex(null);
+        setFormError('');
     };
 
     const handleRequestDelete = (index) => {
@@ -223,6 +231,7 @@ const OrdersView = () => {
                     onSave={handleSaveOrder}
                     onCancel={handleCancelForm}
                     isEditing={editingOrderIndex !== null}
+                    error={formError}
                 />
             )}
 

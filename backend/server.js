@@ -7,6 +7,7 @@ const analyticsRoutes = require('./routes/analyticsRoutes');
 const customerRoutes = require('./routes/customerRoutes');
 const insightRoutes = require('./routes/insightRoutes');
 const orderRoutes = require('./routes/orderRoutes');
+const outreachRoutes = require('./routes/outreachRoutes');
 const { notFound, errorHandler } = require('./middlewares/errorHandler');
 const {
     ensureProductsTable,
@@ -31,6 +32,7 @@ app.use('/api/analytics', analyticsRoutes);
 app.use('/api/customers', customerRoutes);
 app.use('/api/insights', insightRoutes);
 app.use('/api/orders', orderRoutes);
+app.use('/api/outreach', outreachRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

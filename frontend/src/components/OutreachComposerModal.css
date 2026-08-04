@@ -1,0 +1,241 @@
+.oc-overlay {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1200;
+    padding: 20px;
+}
+
+.oc-modal {
+    background-color: var(--bg-card);
+    border-radius: 14px;
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.18);
+    width: 100%;
+    max-width: 620px;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.oc-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 22px 26px;
+    border-bottom: 1px solid var(--border-card);
+}
+
+.oc-header-left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.oc-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background-color: var(--accent);
+    color: #f0f2fa;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 17px;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+.oc-name {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 2px;
+}
+
+.oc-email {
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+.oc-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 6px;
+    line-height: 1;
+    transition: color 0.15s, background-color 0.15s;
+}
+
+.oc-close:hover {
+    color: var(--text-primary);
+    background-color: var(--border);
+}
+
+.oc-body {
+    padding: 22px 26px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.oc-channel-toggle {
+    display: flex;
+    gap: 8px;
+    background-color: var(--border);
+    padding: 4px;
+    border-radius: 8px;
+}
+
+.oc-channel-btn {
+    flex: 1;
+    padding: 8px 12px;
+    border: none;
+    background-color: transparent;
+    color: var(--text-primary);
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+.oc-channel-btn.active {
+    background-color: var(--accent);
+    color: #f0f2fa;
+}
+
+.oc-channel-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.oc-loading {
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.oc-gen-error {
+    font-size: 12.5px;
+    color: #92400e;
+    background-color: rgba(217, 119, 6, 0.1);
+    padding: 8px 12px;
+    border-radius: 8px;
+}
+
+.oc-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    transition: opacity 0.2s ease;
+}
+
+.oc-section-dim {
+    opacity: 0.5;
+}
+
+.oc-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.oc-input,
+.oc-textarea {
+    padding: 10px 14px;
+    border: 1px solid var(--border-card);
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 13.5px;
+    color: var(--text-primary);
+    background-color: #ffffff;
+    resize: vertical;
+}
+
+.oc-input:focus,
+.oc-textarea:focus {
+    outline: none;
+    border-color: var(--accent2);
+    box-shadow: 0 0 0 3px rgba(157, 166, 204, 0.1);
+}
+
+.oc-regenerate-btn {
+    align-self: flex-start;
+    background-color: transparent;
+    color: var(--text-primary);
+    border: 1px solid var(--border-card);
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.oc-regenerate-btn:hover:not(:disabled) {
+    background-color: var(--border);
+}
+
+.oc-send-error {
+    font-size: 12.5px;
+    color: var(--negative);
+    background-color: rgba(220, 38, 38, 0.1);
+    padding: 8px 12px;
+    border-radius: 8px;
+}
+
+.oc-footer {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    padding: 18px 26px;
+    border-top: 1px solid var(--border-card);
+}
+
+.oc-footer .btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.oc-footer .btn-save {
+    background-color: var(--accent);
+    color: #f0f2fa;
+}
+
+.oc-footer .btn-save:hover:not(:disabled) {
+    background-color: var(--sidebar-hover);
+}
+
+.oc-footer .btn-cancel {
+    background-color: var(--border);
+    color: var(--text-primary);
+}
+
+.oc-footer .btn-cancel:hover:not(:disabled) {
+    background-color: var(--border-card);
+}
+
+.oc-footer .btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+@media (max-width: 480px) {
+    .oc-footer {
+        flex-direction: column-reverse;
+    }
+
+    .oc-footer .btn {
+        width: 100%;
+    }
+}

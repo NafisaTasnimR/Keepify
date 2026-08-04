@@ -31,8 +31,14 @@ const listCustomersHandler = async (req, res, next) => {
         const limit = Math.min(Math.max(Number(req.query.limit) || 20, 1), 100);
         const offset = (page - 1) * limit;
 
+        const allowedRisk = new Set(['low', 'medium', 'high']);
+        const risk = typeof req.query.risk === 'string'
+            ? req.query.risk.split(',').map((r) => r.trim()).filter((r) => allowedRisk.has(r))
+            : undefined;
+
         const { items, total } = await listCustomers({
             search:  req.query.search,
+            risk,
             limit,
             offset,
             sortBy:  req.query.sortBy,

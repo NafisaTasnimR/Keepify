@@ -4,6 +4,7 @@ import ProductsView from './ProductsView';
 import OrdersView from './OrdersView';
 import AnalyticsPage from './AnalyticsPage';
 import CustomerPage from './CustomerPage';
+import OutreachPage from './OutreachPage';
 import './Dashboard.css';
 const EMPTY_SALES_DATA = [
     { day: 'Mon', value: 0 },
@@ -209,6 +210,8 @@ const Dashboard = () => {
                         <OrdersView />
                     ) : activeMenu === 'Customers' ? (
                         <CustomerPage />
+                    ) : activeMenu === 'Outreach' ? (
+                        <OutreachPage />
                     ) : (
                         <>
                             {/* Metric cards */}

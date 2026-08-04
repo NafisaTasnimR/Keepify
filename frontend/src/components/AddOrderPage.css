@@ -67,6 +67,12 @@
     box-shadow: 0 0 0 3px rgba(157, 166, 204, 0.1);
 }
 
+.form-input:disabled {
+    background-color: var(--border);
+    color: var(--text-muted);
+    cursor: not-allowed;
+}
+
 .form-row {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -98,6 +104,15 @@
 .btn-save:hover {
     background-color: var(--sidebar-hover);
     box-shadow: 0 4px 12px rgba(49, 52, 71, 0.2);
+}
+
+.form-error {
+    color: var(--negative);
+    font-size: 12.5px;
+    background-color: rgba(220, 38, 38, 0.1);
+    padding: 8px 12px;
+    border-radius: 8px;
+    margin: 0;
 }
 
 .btn-cancel {
