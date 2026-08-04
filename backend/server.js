@@ -8,6 +8,7 @@ const customerRoutes = require('./routes/customerRoutes');
 const insightRoutes = require('./routes/insightRoutes');
 const orderRoutes = require('./routes/orderRoutes');
 const outreachRoutes = require('./routes/outreachRoutes');
+const aiInsightsRoutes = require('./routes/aiInsightsRoutes');
 const { notFound, errorHandler } = require('./middlewares/errorHandler');
 const {
     ensureProductsTable,
@@ -33,6 +34,7 @@ app.use('/api/customers', customerRoutes);
 app.use('/api/insights', insightRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/outreach', outreachRoutes);
+app.use('/api/ai-insights', aiInsightsRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
