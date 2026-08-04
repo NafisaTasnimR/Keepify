@@ -14,7 +14,7 @@ const {
     ensureProductImagesTable,
 } = require('./services/productService');
 const { ensureCustomersTable } = require('./services/customerService');
-const { ensureOrdersTable } = require('./services/orderService');
+const { ensureOrdersTable, ensureOrderAnalyticsTable } = require('./services/orderService');
 
 dotenv.config();
 
@@ -45,6 +45,7 @@ const startServer = async () => {
         await ensureProductImagesTable();
         await ensureCustomersTable();
         await ensureOrdersTable();
+        await ensureOrderAnalyticsTable();
 
         const port = process.env.PORT || 5000;
         app.listen(port, () => {

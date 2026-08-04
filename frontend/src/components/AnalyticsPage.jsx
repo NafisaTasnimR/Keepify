@@ -44,6 +44,7 @@ const AnalyticsPage = () => {
     const [weekdayActivity, setWeekdayActivity] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [isClearingCache, setIsClearingCache] = useState(false);
 
     const period = periodConfig[selectedPeriod];
 
@@ -57,7 +58,6 @@ const AnalyticsPage = () => {
 
             try {
                 const selectedRange = buildDateRange(period.daysBack);
-                const activityRange = buildDateRange(7);
 
                 const selectedParams = new URLSearchParams({
                     start: selectedRange.start,
@@ -66,8 +66,8 @@ const AnalyticsPage = () => {
                 });
 
                 const activityParams = new URLSearchParams({
-                    start: activityRange.start,
-                    end: activityRange.end,
+                    start: selectedRange.start,
+                    end: selectedRange.end,
                     interval: 'day',
                 });
 
@@ -135,6 +135,31 @@ const AnalyticsPage = () => {
         };
     }, [period.daysBack, period.interval]);
 
+    const handleClearCache = async () => {
+        if (!confirm('Are you sure you want to clear the analytics cache? This will force a fresh fetch from the database.')) {
+            return;
+        }
+
+        setIsClearingCache(true);
+        try {
+            const response = await fetch('/api/analytics/cache', { method: 'DELETE' });
+            if (!response.ok) {
+                throw new Error('Failed to clear cache');
+            }
+            
+            // Refresh data after clearing cache
+            // We can trigger a re-run of the useEffect by updating a state or just calling the load function if it were extracted.
+            // For now, we'll just alert success and the user can refresh or we can trigger a reload.
+            alert('Analytics cache cleared successfully!');
+            window.location.reload(); 
+        } catch (err) {
+            console.error('Clear cache error:', err);
+            alert('An error occurred while clearing the analytics cache.');
+        } finally {
+            setIsClearingCache(false);
+        }
+    };
+
     const revenueRows = useMemo(() => {
         if (!categoryBreakdown.length) {
             return [];
@@ -196,6 +221,13 @@ const AnalyticsPage = () => {
                         {periodName}
                     </button>
                 ))}
+                <button 
+                    className="period-tab clear-cache-btn" 
+                    onClick={handleClearCache} 
+                    disabled={isClearingCache}
+                >
+                    {isClearingCache ? 'Clearing...' : 'Clear Cache'}
+                </button>
             </div>
 
             <div className="analytics-grid">

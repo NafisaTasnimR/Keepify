@@ -17,16 +17,29 @@ const AddOrderPage = ({
     onCancel,
     isEditing = false,
 }) => {
+    const defaultFormData = {
+        customerId: '',
+        productId: '',
+        quantity: '1',
+        amount: '',
+        orderDate: new Date().toISOString().slice(0, 10),
+        status: 'pending',
+        category: '',
+    };
+
     const [formData, setFormData] = useState(
         order
-            ? { ...order, orderDate: toDateInputValue(order.orderDate) }
-            : {
-                customerName: '',
-                customerEmail: '',
-                orderDate: new Date().toISOString().slice(0, 10),
-                amount: '',
-                status: 'pending',
+            ? {
+                ...defaultFormData,
+                ...order,
+                customerId: order.customerId ?? '',
+                productId: order.productId ?? '',
+                quantity: order.quantity ?? '1',
+                amount: order.amount ?? '',
+                orderDate: toDateInputValue(order.orderDate),
+                status: order.status ?? 'pending',
             }
+            : defaultFormData
     );
 
     const handleInputChange = (e) => {
@@ -48,50 +61,60 @@ const AddOrderPage = ({
                 <h2>{isEditing ? 'Edit Order' : 'Add New Order'}</h2>
 
                 <form onSubmit={handleSubmit} className="add-order-form">
-                    <div className="form-section">
-                        <label htmlFor="customerName" className="form-label">
-                            Customer Name *
-                        </label>
-                        <input
-                            type="text"
-                            id="customerName"
-                            name="customerName"
-                            value={formData.customerName}
-                            onChange={handleInputChange}
-                            required
-                            className="form-input"
-                            placeholder="Enter customer name"
-                        />
-                    </div>
+                    <div className="form-row">
+                        <div className="form-section">
+                            <label htmlFor="customerId" className="form-label">
+                                Customer ID *
+                            </label>
+                            <input
+                                type="number"
+                                id="customerId"
+                                name="customerId"
+                                value={formData.customerId}
+                                onChange={handleInputChange}
+                                required
+                                className="form-input"
+                                placeholder="1"
+                                min="1"
+                                step="1"
+                            />
+                        </div>
 
-                    <div className="form-section">
-                        <label htmlFor="customerEmail" className="form-label">
-                            Customer Email
-                        </label>
-                        <input
-                            type="email"
-                            id="customerEmail"
-                            name="customerEmail"
-                            value={formData.customerEmail}
-                            onChange={handleInputChange}
-                            className="form-input"
-                            placeholder="customer@example.com"
-                        />
+                        <div className="form-section">
+                            <label htmlFor="productId" className="form-label">
+                                Product ID *
+                            </label>
+                            <input
+                                type="number"
+                                id="productId"
+                                name="productId"
+                                value={formData.productId}
+                                onChange={handleInputChange}
+                                required
+                                className="form-input"
+                                placeholder="1"
+                                min="1"
+                                step="1"
+                            />
+                        </div>
                     </div>
 
                     <div className="form-row">
                         <div className="form-section">
-                            <label htmlFor="orderDate" className="form-label">
-                                Order Date *
+                            <label htmlFor="quantity" className="form-label">
+                                Quantity *
                             </label>
                             <input
-                                type="date"
-                                id="orderDate"
-                                name="orderDate"
-                                value={formData.orderDate}
+                                type="number"
+                                id="quantity"
+                                name="quantity"
+                                value={formData.quantity}
                                 onChange={handleInputChange}
                                 required
                                 className="form-input"
+                                placeholder="1"
+                                min="1"
+                                step="1"
                             />
                         </div>
 
@@ -112,6 +135,21 @@ const AddOrderPage = ({
                                 min="0"
                             />
                         </div>
+                    </div>
+
+                    <div className="form-section">
+                        <label htmlFor="orderDate" className="form-label">
+                            Order Date *
+                        </label>
+                        <input
+                            type="date"
+                            id="orderDate"
+                            name="orderDate"
+                            value={formData.orderDate}
+                            onChange={handleInputChange}
+                            required
+                            className="form-input"
+                        />
                     </div>
 
                     <div className="form-section">
