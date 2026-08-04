@@ -1,5 +1,4 @@
 const nodemailer = require('nodemailer');
-const twilio = require('twilio');
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
@@ -99,18 +98,4 @@ const sendEmail = async (customer, subject, body) => {
     });
 };
 
-const sendWhatsapp = async (customer, text) => {
-    if (!customer.phone) {
-        throw new Error('Customer has no phone number on file');
-    }
-
-    const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-
-    await client.messages.create({
-        from: process.env.TWILIO_WHATSAPP_FROM,
-        to: `whatsapp:${customer.phone}`,
-        body: text,
-    });
-};
-
-module.exports = { generateOutreachMessage, sendEmail, sendWhatsapp };
+module.exports = { generateOutreachMessage, sendEmail };

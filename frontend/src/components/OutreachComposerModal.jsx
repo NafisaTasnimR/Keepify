@@ -1,6 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import './OutreachComposerModal.css';
 
+const toWhatsappNumber = (phone) => {
+    const digits = (phone || '').replace(/\D/g, '');
+    if (digits.startsWith('880')) return digits;
+    if (digits.startsWith('0')) return `880${digits.slice(1)}`;
+    return digits;
+};
+
 const OutreachComposerModal = ({ customer, onClose, onSent }) => {
     const [loading, setLoading] = useState(true);
     const [genError, setGenError] = useState('');
@@ -39,6 +46,15 @@ const OutreachComposerModal = ({ customer, onClose, onSent }) => {
     }, [customer.id]);
 
     const handleSend = async () => {
+        if (channel === 'whatsapp') {
+            const number = toWhatsappNumber(customer.phone);
+            const url = `https://wa.me/${number}?text=${encodeURIComponent(whatsappText)}`;
+            window.open(url, '_blank', 'noopener,noreferrer');
+            onSent?.(`Opened WhatsApp for ${customer.name} — send it from there`);
+            onClose();
+            return;
+        }
+
         setSending(true);
         setSendError('');
         try {
@@ -47,15 +63,15 @@ const OutreachComposerModal = ({ customer, onClose, onSent }) => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     customerId: customer.id,
-                    channel,
-                    subject: channel === 'email' ? emailSubject : undefined,
-                    message: channel === 'email' ? emailBody : whatsappText,
+                    channel: 'email',
+                    subject: emailSubject,
+                    message: emailBody,
                 }),
             });
             const data = await res.json();
             if (!res.ok) throw new Error(data.message || 'Send failed');
 
-            onSent?.(`Sent via ${channel === 'email' ? 'Email' : 'WhatsApp'} to ${customer.name}`);
+            onSent?.(`Sent via Email to ${customer.name}`);
             onClose();
         } catch (error) {
             setSendError(error.message || 'Failed to send. Please try again.');
@@ -155,7 +171,7 @@ const OutreachComposerModal = ({ customer, onClose, onSent }) => {
                         onClick={handleSend}
                         disabled={sending || loading}
                     >
-                        {sending ? 'Sending…' : `Send ${channel === 'email' ? 'Email' : 'WhatsApp'}`}
+                        {sending ? 'Sending…' : channel === 'email' ? 'Send Email' : 'Open in WhatsApp'}
                     </button>
                 </div>
             </div>

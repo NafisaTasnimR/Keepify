@@ -1,5 +1,5 @@
 const { getCustomerById } = require('../services/customerService');
-const { generateOutreachMessage, sendEmail, sendWhatsapp } = require('../services/outreachService');
+const { generateOutreachMessage, sendEmail } = require('../services/outreachService');
 
 const generateHandler = async (req, res, next) => {
     try {
@@ -37,14 +37,19 @@ const sendHandler = async (req, res, next) => {
             throw new Error('customerId is required');
         }
 
-        if (channel !== 'email' && channel !== 'whatsapp') {
+        if (channel !== 'email') {
             res.status(400);
-            throw new Error('channel must be "email" or "whatsapp"');
+            throw new Error('channel must be "email" (WhatsApp is sent client-side via wa.me)');
         }
 
         if (!message || typeof message !== 'string') {
             res.status(400);
             throw new Error('message is required');
+        }
+
+        if (!subject || typeof subject !== 'string') {
+            res.status(400);
+            throw new Error('subject is required for email');
         }
 
         const customer = await getCustomerById(customerId);
@@ -53,15 +58,7 @@ const sendHandler = async (req, res, next) => {
             throw new Error('Customer not found');
         }
 
-        if (channel === 'email') {
-            if (!subject || typeof subject !== 'string') {
-                res.status(400);
-                throw new Error('subject is required for email');
-            }
-            await sendEmail(customer, subject, message);
-        } else {
-            await sendWhatsapp(customer, message);
-        }
+        await sendEmail(customer, subject, message);
 
         res.json({ success: true, channel, customerId });
     } catch (error) {
