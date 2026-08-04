@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './AddOrderPage.css';
 
 const toDateInputValue = (value) => {
@@ -16,6 +16,7 @@ const AddOrderPage = ({
     onSave,
     onCancel,
     isEditing = false,
+    error = '',
 }) => {
     const defaultFormData = {
         customerId: '',
@@ -42,6 +43,37 @@ const AddOrderPage = ({
             : defaultFormData
     );
 
+    const [customers, setCustomers] = useState([]);
+    const [products, setProducts] = useState([]);
+    const [optionsLoading, setOptionsLoading] = useState(true);
+    const [optionsError, setOptionsError] = useState('');
+
+    useEffect(() => {
+        const loadOptions = async () => {
+            setOptionsLoading(true);
+            setOptionsError('');
+            try {
+                const [customersRes, productsRes] = await Promise.all([
+                    fetch('/api/customers?limit=200&sortBy=name&sortDir=asc'),
+                    fetch('/api/products?limit=200&sortBy=name&sortDir=asc'),
+                ]);
+                if (!customersRes.ok || !productsRes.ok) {
+                    throw new Error('Failed to load customers/products');
+                }
+                const customersData = await customersRes.json();
+                const productsData = await productsRes.json();
+                setCustomers(Array.isArray(customersData.items) ? customersData.items : []);
+                setProducts(Array.isArray(productsData.items) ? productsData.items : []);
+            } catch {
+                setOptionsError('Could not load customers/products list.');
+            } finally {
+                setOptionsLoading(false);
+            }
+        };
+
+        loadOptions();
+    }, []);
+
     const handleInputChange = (e) => {
         const { name, value } = e.target;
         setFormData((prev) => ({
@@ -50,10 +82,36 @@ const AddOrderPage = ({
         }));
     };
 
+    const handleProductChange = (e) => {
+        const productId = e.target.value;
+        const selectedProduct = products.find((p) => String(p.id) === productId);
+        setFormData((prev) => ({
+            ...prev,
+            productId,
+            amount: selectedProduct
+                ? (Number(selectedProduct.price) * (Number(prev.quantity) || 1)).toFixed(2)
+                : prev.amount,
+        }));
+    };
+
+    const handleQuantityChange = (e) => {
+        const quantity = e.target.value;
+        const selectedProduct = products.find((p) => String(p.id) === formData.productId);
+        setFormData((prev) => ({
+            ...prev,
+            quantity,
+            amount: selectedProduct
+                ? (Number(selectedProduct.price) * (Number(quantity) || 1)).toFixed(2)
+                : prev.amount,
+        }));
+    };
+
     const handleSubmit = (e) => {
         e.preventDefault();
         onSave(formData);
     };
+
+    const selectedCustomer = customers.find((c) => String(c.id) === String(formData.customerId));
 
     return (
         <div className="add-order-overlay">
@@ -61,41 +119,72 @@ const AddOrderPage = ({
                 <h2>{isEditing ? 'Edit Order' : 'Add New Order'}</h2>
 
                 <form onSubmit={handleSubmit} className="add-order-form">
+                    {optionsError && <p className="form-error">{optionsError}</p>}
+
                     <div className="form-row">
                         <div className="form-section">
                             <label htmlFor="customerId" className="form-label">
-                                Customer ID *
+                                Customer *
                             </label>
-                            <input
-                                type="number"
+                            <select
                                 id="customerId"
                                 name="customerId"
                                 value={formData.customerId}
                                 onChange={handleInputChange}
                                 required
-                                className="form-input"
-                                placeholder="1"
-                                min="1"
-                                step="1"
-                            />
+                                className="form-select"
+                                disabled={optionsLoading}
+                            >
+                                <option value="">
+                                    {optionsLoading ? 'Loading customers…' : 'Select a customer'}
+                                </option>
+                                {customers.map((customer) => (
+                                    <option key={customer.id} value={customer.id}>
+                                        {customer.name} ({customer.email})
+                                    </option>
+                                ))}
+                            </select>
                         </div>
+                    </div>
 
+                    <div className="form-section">
+                        <label htmlFor="customerEmail" className="form-label">
+                            Customer Email
+                        </label>
+                        <input
+                            type="email"
+                            id="customerEmail"
+                            className="form-input"
+                            value={selectedCustomer?.email || ''}
+                            placeholder="Select a customer to see their email"
+                            readOnly
+                            disabled
+                        />
+                    </div>
+
+                    <div className="form-row">
                         <div className="form-section">
                             <label htmlFor="productId" className="form-label">
-                                Product ID *
+                                Product *
                             </label>
-                            <input
-                                type="number"
+                            <select
                                 id="productId"
                                 name="productId"
                                 value={formData.productId}
-                                onChange={handleInputChange}
+                                onChange={handleProductChange}
                                 required
-                                className="form-input"
-                                placeholder="1"
-                                min="1"
-                                step="1"
-                            />
+                                className="form-select"
+                                disabled={optionsLoading}
+                            >
+                                <option value="">
+                                    {optionsLoading ? 'Loading products…' : 'Select a product'}
+                                </option>
+                                {products.map((product) => (
+                                    <option key={product.id} value={product.id}>
+                                        {product.name}{product.sku ? ` (${product.sku})` : ''}
+                                    </option>
+                                ))}
+                            </select>
                         </div>
                     </div>
 
@@ -109,7 +198,7 @@ const AddOrderPage = ({
                                 id="quantity"
                                 name="quantity"
                                 value={formData.quantity}
-                                onChange={handleInputChange}
+                                onChange={handleQuantityChange}
                                 required
                                 className="form-input"
                                 placeholder="1"
@@ -168,6 +257,8 @@ const AddOrderPage = ({
                             <option value="cancelled">Cancelled</option>
                         </select>
                     </div>
+
+                    {error && <p className="form-error">{error}</p>}
 
                     <div className="form-buttons">
                         <button type="button" onClick={onCancel} className="btn btn-cancel">
