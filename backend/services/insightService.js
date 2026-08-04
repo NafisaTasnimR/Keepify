@@ -81,6 +81,17 @@ OUTPUT only this JSON, no markdown:
         return null;
     }
 
+    // ── High-value borderline customer override ───────────────
+    // Catches customers who are medium risk but too valuable
+    // to treat casually — escalate before they tip into high risk
+    const isHighValue  = Number(totalSpending) > 8000;
+    const isBorderline = churnScore >= 0.28 && churnScore < 0.40;
+
+    if (isHighValue && isBorderline) {
+        parsed.action   = `${parsed.action} — prioritise urgently, this is a high-value customer approaching high risk`;
+        parsed.priority = 'high';
+    }
+
     return {
         type:        parsed.type        || 'follow_up',
         title:       parsed.title       || `Insight for ${name}`,
@@ -107,7 +118,7 @@ const rebuildInsights = async () => {
     rows.forEach(r => console.log(`  - ${r.name}, risk: ${r.churnRisk}`));
 
     const results = [];
-    const batchSize = 5;
+    const batchSize = 2;
 
     for (let i = 0; i < rows.length; i += batchSize) {
         const batch = rows.slice(i, i + batchSize);
@@ -126,7 +137,7 @@ const rebuildInsights = async () => {
         });
 
         if (i + batchSize < rows.length) {
-            await new Promise(res => setTimeout(res, 1000));
+            await new Promise(res => setTimeout(res, 3000));
         }
     }
 

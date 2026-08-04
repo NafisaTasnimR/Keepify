@@ -5,6 +5,7 @@ import OrdersView from './OrdersView';
 import AnalyticsPage from './AnalyticsPage';
 import CustomerPage from './CustomerPage';
 import OutreachPage from './OutreachPage';
+import AIInsightsPage from './AIInsightsPage';
 import './Dashboard.css';
 const EMPTY_SALES_DATA = [
     { day: 'Mon', value: 0 },
@@ -210,6 +211,8 @@ const Dashboard = () => {
                         <OrdersView />
                     ) : activeMenu === 'Customers' ? (
                         <CustomerPage />
+                    ) : activeMenu === 'AI' ? (
+                        <AIInsightsPage />
                     ) : activeMenu === 'Outreach' ? (
                         <OutreachPage />
                     ) : (
