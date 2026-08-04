@@ -37,7 +37,7 @@ const ensureCustomersTable = async () => {
     `);
 };
 
-const listCustomers = async ({ search, limit, offset, sortBy, sortDir }) => {
+const listCustomers = async ({ search, risk, limit, offset, sortBy, sortDir }) => {
     const allowedSort = new Set([
         'name', 'email', 'total_orders',
         'total_spending', 'last_active', 'created_at', 'churn_score',
@@ -53,6 +53,11 @@ const listCustomers = async ({ search, limit, offset, sortBy, sortDir }) => {
         whereClauses.push(
             `(name ILIKE $${whereValues.length} OR email ILIKE $${whereValues.length})`
         );
+    }
+
+    if (risk && risk.length) {
+        whereValues.push(risk);
+        whereClauses.push(`churn_risk = ANY($${whereValues.length})`);
     }
 
     const whereSql = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
@@ -146,14 +151,17 @@ const saveChurnScore = async (id, score) => {
     return rows[0] ? mapCustomer(rows[0]) : null;
 };
 
-const getHighRiskCustomers = async () => {
+const getCustomersByRisk = async (riskLevels) => {
     const { rows } = await pool.query(
         `SELECT ${CUSTOMER_COLUMNS.join(', ')} FROM customers
-         WHERE churn_risk = 'high'
-         ORDER BY churn_score DESC`
+         WHERE churn_risk = ANY($1)
+         ORDER BY churn_score DESC`,
+        [riskLevels]
     );
     return rows.map(mapCustomer);
 };
+
+const getHighRiskCustomers = () => getCustomersByRisk(['high']);
 
 module.exports = {
     ensureCustomersTable,
@@ -164,4 +172,5 @@ module.exports = {
     deleteCustomer,
     saveChurnScore,
     getHighRiskCustomers,
+    getCustomersByRisk,
 };
