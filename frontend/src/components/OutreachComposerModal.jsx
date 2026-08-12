@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './OutreachComposerModal.css';
+import { apiFetch } from '../api/client';
 
 const toWhatsappNumber = (phone) => {
     const digits = (phone || '').replace(/\D/g, '');
@@ -23,7 +24,7 @@ const OutreachComposerModal = ({ customer, onClose, onSent }) => {
         setGenError('');
         setSendError('');
         try {
-            const res = await fetch('/api/outreach/generate', {
+            const res = await apiFetch('/api/outreach/generate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ customerId: customer.id }),
@@ -58,7 +59,7 @@ const OutreachComposerModal = ({ customer, onClose, onSent }) => {
         setSending(true);
         setSendError('');
         try {
-            const res = await fetch('/api/outreach/send', {
+            const res = await apiFetch('/api/outreach/send', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

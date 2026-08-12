@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import ProductsView from './ProductsView';
 import OrdersView from './OrdersView';
@@ -6,7 +7,11 @@ import AnalyticsPage from './AnalyticsPage';
 import CustomerPage from './CustomerPage';
 import OutreachPage from './OutreachPage';
 import AIInsightsPage from './AIInsightsPage';
+import Settings from './Settings';
+import AuthPage from './AuthPage';
 import './Dashboard.css';
+import { apiFetch } from '../api/client';
+
 const EMPTY_SALES_DATA = [
     { day: 'Mon', value: 0 },
     { day: 'Tue', value: 0 },
@@ -17,7 +22,7 @@ const EMPTY_SALES_DATA = [
     { day: 'Sun', value: 0 },
 ];
 
-const formatCurrency = (value, currencySymbol = '$') => {
+const formatCurrency = (value, currencySymbol = '৳') => {
     const amount = Number(value);
     if (Number.isNaN(amount)) {
         return `${currencySymbol}0`;
@@ -29,21 +34,62 @@ const formatCurrency = (value, currencySymbol = '$') => {
     })}`;
 };
 
+const getInitials = (name) => {
+    if (!name) return 'U';
+    const parts = name.trim().split(' ');
+    if (parts.length >= 2) {
+        return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return name.slice(0, 2).toUpperCase();
+};
+
 const Dashboard = () => {
+    const navigate = useNavigate();
     const [activeMenu, setActiveMenu] = useState('Dashboard');
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [userInfo, setUserInfo] = useState({ name: 'User', email: '' });
     const [kpis, setKpis] = useState({
         totalRevenue: 0,
         totalOrders: 0,
         avgOrderValue: 0,
     });
     const [salesData, setSalesData] = useState(EMPTY_SALES_DATA);
+    const [churnAlerts, setChurnAlerts] = useState([]);
+    const [topProducts, setTopProducts] = useState([]);
     const [analyticsError, setAnalyticsError] = useState('');
+
+    useEffect(() => {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            navigate('/auth');
+            return;
+        }
+
+        // Fetch user profile settings
+        const fetchUserProfile = async () => {
+            try {
+                const res = await apiFetch('/api/settings/me');
+                if (res.ok) {
+                    const data = await res.json();
+                    setUserInfo({ name: data.name || 'User', email: data.email || '' });
+                } else {
+                    const saved = localStorage.getItem('user');
+                    if (saved) {
+                        const parsed = JSON.parse(saved);
+                        setUserInfo({ name: parsed.name || 'User', email: parsed.email || '' });
+                    }
+                }
+            } catch (e) {
+                // ignore
+            }
+        };
+
+        fetchUserProfile();
+    }, [navigate]);
 
     const chartRef = useRef(null);
     const [chartHeight, setChartHeight] = useState(160);
 
-    // Measure the actual chart container height so bars always fill it
     useEffect(() => {
         const measure = () => {
             if (chartRef.current) {
@@ -55,36 +101,61 @@ const Dashboard = () => {
         return () => window.removeEventListener('resize', measure);
     }, []);
 
-    const fetchAnalytics = async () => {
+    const fetchDashboardData = async () => {
         setAnalyticsError('');
 
         try {
-            const [kpisResponse, trendsResponse] = await Promise.all([
-                fetch('/api/analytics/kpis'),
-                fetch('/api/analytics/trends'),
+            const [kpisResponse, trendsResponse, customersResponse, productsResponse] = await Promise.all([
+                apiFetch('/api/analytics/kpis'),
+                apiFetch('/api/analytics/trends'),
+                apiFetch('/api/customers?risk=high,medium&limit=10'),
+                apiFetch('/api/products?limit=5'),
             ]);
 
-            if (!kpisResponse.ok || !trendsResponse.ok) {
-                throw new Error('Failed to load analytics');
+            if (kpisResponse.ok) {
+                const kpisPayload = await kpisResponse.json();
+                const kpisData = kpisPayload?.data || {};
+                setKpis({
+                    totalRevenue: Number(kpisData.totalRevenue || 0),
+                    totalOrders: Number(kpisData.totalOrders || 0),
+                    avgOrderValue: Number(kpisData.avgOrderValue || 0),
+                });
             }
 
-            const kpisPayload = await kpisResponse.json();
-            const kpisData = kpisPayload?.data || {};
-            setKpis({
-                totalRevenue: Number(kpisData.totalRevenue || 0),
-                totalOrders: Number(kpisData.totalOrders || 0),
-                avgOrderValue: Number(kpisData.avgOrderValue || 0),
-            });
+            if (trendsResponse.ok) {
+                const trendsPayload = await trendsResponse.json();
+                const trendItems = Array.isArray(trendsPayload?.data) ? trendsPayload.data : [];
+                const mapped = trendItems.map(item => ({
+                    day: new Date(item.date).toLocaleDateString('en-US', { weekday: 'short' }),
+                    value: Number(item.revenue || 0),
+                }));
 
-            const trendsPayload = await trendsResponse.json();
-            const trendItems = Array.isArray(trendsPayload?.data) ? trendsPayload.data : [];
-            const mapped = trendItems.map(item => ({
-                day: new Date(item.date).toLocaleDateString('en-US', { weekday: 'short' }),
-                value: Number(item.revenue || 0),
-            }));
+                const trimmed = mapped.slice(-7);
+                setSalesData(trimmed.length ? trimmed : EMPTY_SALES_DATA);
+            }
 
-            const trimmed = mapped.slice(-7);
-            setSalesData(trimmed.length ? trimmed : EMPTY_SALES_DATA);
+            if (customersResponse.ok) {
+                const custPayload = await customersResponse.json();
+                const custItems = custPayload?.items || [];
+                const formattedAlerts = custItems.map(c => {
+                    const days = c.lastActive
+                        ? `${Math.floor((Date.now() - new Date(c.lastActive).getTime()) / (1000 * 60 * 60 * 24))} days inactive`
+                        : 'never purchased';
+                    return {
+                        name: c.name,
+                        days,
+                        risk: c.churnRisk === 'high' ? 'High' : 'Medium',
+                    };
+                });
+                setChurnAlerts(formattedAlerts);
+            }
+
+            if (productsResponse.ok) {
+                const prodPayload = await productsResponse.json();
+                const prodItems = prodPayload?.items || [];
+                setTopProducts(prodItems);
+            }
+
         } catch (error) {
             setKpis({
                 totalRevenue: 0,
@@ -97,34 +168,20 @@ const Dashboard = () => {
     };
 
     useEffect(() => {
-        fetchAnalytics();
-    }, []);
+        fetchDashboardData();
+    }, [activeMenu]);
 
-    const kpiNote = analyticsError ? 'No data yet' : 'Updated from analytics';
-    const kpiChangeType = analyticsError ? 'alert' : 'positive';
+    const kpiNote = kpis.totalOrders === 0 ? 'No data yet' : 'Updated from analytics';
+    const kpiChangeType = kpis.totalOrders === 0 ? 'neutral' : 'positive';
 
     const metrics = [
         { label: 'Total revenue', value: formatCurrency(kpis.totalRevenue), change: kpiNote, changeType: kpiChangeType },
         { label: 'Total orders', value: kpis.totalOrders.toLocaleString(), change: kpiNote, changeType: kpiChangeType },
         { label: 'Avg order value', value: formatCurrency(kpis.avgOrderValue), change: kpiNote, changeType: kpiChangeType },
-        { label: 'Churn alerts', value: '9', change: 'High risk customers', changeType: 'alert' },
-    ];
-
-    const churnAlerts = [
-        { name: 'Sarah Islam', days: '48 days inactive', risk: 'High' },
-        { name: 'Rafiq Uddin', days: '41 days inactive', risk: 'High' },
-        { name: 'Mitu Akter', days: '29 days inactive', risk: 'Medium' },
-        { name: 'Tanvir Hasan', days: '25 days inactive', risk: 'Medium' },
-    ];
-
-    const topProducts = [
-        { name: 'Premium Plan', unitsSold: 312, revenue: '$15,600', trend: '+18%', trendType: 'positive' },
-        { name: 'Standard Pack', unitsSold: 204, revenue: '$6,120', trend: '+7%', trendType: 'positive' },
-        { name: 'Add-on Bundle', unitsSold: 97, revenue: '$2,910', trend: '−4%', trendType: 'negative' },
+        { label: 'Churn alerts', value: churnAlerts.length.toString(), change: 'At-risk customers', changeType: churnAlerts.length > 0 ? 'alert' : 'neutral' },
     ];
 
     const maxValue = Math.max(...salesData.map(d => d.value), 1);
-    // Reserve ~24px for the day labels below each bar
     const BAR_AREA = Math.max(chartHeight - 24, 40);
 
     const navSections = [
@@ -146,7 +203,7 @@ const Dashboard = () => {
         {
             title: 'Action',
             items: [
-                { key: 'Outreach', label: 'Outreach', badge: '9' },
+                { key: 'Outreach', label: 'Outreach', badge: churnAlerts.length ? churnAlerts.length.toString() : undefined },
             ],
         },
         {
@@ -197,8 +254,8 @@ const Dashboard = () => {
                         <h1>{activeMenu === 'AI' ? 'AI Insights' : activeMenu}</h1>
                     </div>
                     <div className="header-right">
-                        <span className="company-name">Demo Corp</span>
-                        <div className="profile-avatar">DC</div>
+                        <span className="company-name">{userInfo.name}</span>
+                        <div className="profile-avatar">{getInitials(userInfo.name)}</div>
                     </div>
                 </header>
 
@@ -215,6 +272,10 @@ const Dashboard = () => {
                         <AIInsightsPage />
                     ) : activeMenu === 'Outreach' ? (
                         <OutreachPage />
+                    ) : activeMenu === 'Settings' ? (
+                        <Settings />
+                    ) : activeMenu === 'Auth' ? (
+                        <AuthPage />
                     ) : (
                         <>
                             {/* Metric cards */}
@@ -255,51 +316,65 @@ const Dashboard = () => {
                                 <div className="card churn-card">
                                     <h3>Churn alerts</h3>
                                     <div className="alerts-list">
-                                        {churnAlerts.map((alert, i) => (
-                                            <div key={i} className="alert-item">
-                                                <div className="alert-content">
-                                                    <span className={`alert-dot ${alert.risk === 'Medium' ? 'medium' : ''}`} />
-                                                    <div className="alert-info">
-                                                        <p className="alert-name">{alert.name}</p>
-                                                        <p className="alert-days">{alert.days}</p>
+                                        {churnAlerts.length > 0 ? (
+                                            churnAlerts.map((alert, i) => (
+                                                <div key={i} className="alert-item">
+                                                    <div className="alert-content">
+                                                        <span className={`alert-dot ${alert.risk === 'Medium' ? 'medium' : ''}`} />
+                                                        <div className="alert-info">
+                                                            <p className="alert-name">{alert.name}</p>
+                                                            <p className="alert-days">{alert.days}</p>
+                                                        </div>
                                                     </div>
+                                                    <span className={`risk-badge ${alert.risk.toLowerCase()}`}>
+                                                        {alert.risk}
+                                                    </span>
                                                 </div>
-                                                <span className={`risk-badge ${alert.risk.toLowerCase()}`}>
-                                                    {alert.risk}
-                                                </span>
-                                            </div>
-                                        ))}
+                                            ))
+                                        ) : (
+                                            <p style={{ color: '#888', fontStyle: 'italic', padding: '12px 0' }}>
+                                                No churn alerts found. Add customers and run scoring to see churn risks.
+                                            </p>
+                                        )}
                                     </div>
                                 </div>
                             </div>
 
                             {/* Top products table */}
                             <div className="card top-products-card">
-                                <h3>Top products</h3>
-                                <table className="products-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Product</th>
-                                            <th>Units sold</th>
-                                            <th>Revenue</th>
-                                            <th>Trend</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {topProducts.map((product, i) => (
-                                            <tr key={i}>
-                                                <td>{product.name}</td>
-                                                <td>{product.unitsSold}</td>
-                                                <td>{product.revenue}</td>
-                                                <td>
-                                                    <span className={`trend ${product.trendType}`}>
-                                                        {product.trend}
-                                                    </span>
-                                                </td>
+                                <h3>Products</h3>
+                                {topProducts.length > 0 ? (
+                                    <table className="products-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Product</th>
+                                                <th>SKU</th>
+                                                <th>Price</th>
+                                                <th>Stock</th>
+                                                <th>Status</th>
                                             </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+                                        </thead>
+                                        <tbody>
+                                            {topProducts.map((product, i) => (
+                                                <tr key={i}>
+                                                    <td>{product.name}</td>
+                                                    <td>{product.sku || 'N/A'}</td>
+                                                    <td>{formatCurrency(product.price)}</td>
+                                                    <td>{product.stock}</td>
+                                                    <td>
+                                                        <span className={`status-badge ${product.status}`}>
+                                                            {product.status}
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                ) : (
+                                    <p style={{ color: '#888', fontStyle: 'italic', padding: '16px' }}>
+                                        No products yet. Click on "Products" in the sidebar to add your first product.
+                                    </p>
+                                )}
                             </div>
                         </>
                     )}

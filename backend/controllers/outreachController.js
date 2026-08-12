@@ -9,7 +9,7 @@ const generateHandler = async (req, res, next) => {
             throw new Error('customerId is required');
         }
 
-        const customer = await getCustomerById(customerId);
+        const customer = await getCustomerById(req.user.uid, customerId);
         if (!customer) {
             res.status(404);
             throw new Error('Customer not found');
@@ -52,7 +52,7 @@ const sendHandler = async (req, res, next) => {
             throw new Error('subject is required for email');
         }
 
-        const customer = await getCustomerById(customerId);
+        const customer = await getCustomerById(req.user.uid, customerId);
         if (!customer) {
             res.status(404);
             throw new Error('Customer not found');

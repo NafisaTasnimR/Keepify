@@ -1,28 +1,22 @@
 const AnalyticsSnapshot = require('../models/AnalyticsSnapshot');
 const { pool } = require('../config/postgres');
+const { getKpis, getTrends, getCategoryBreakdown } = require('./analyticsService');
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const CACHE_TTL_SECONDS = 60 * 60; // 1 hour
 
-// ─── Fetch raw data from existing endpoints ───────────────────
-const fetchAnalyticsData = async () => {
-    const now = new Date();
-    const start = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-    const params = `start=${start.toISOString()}&end=${now.toISOString()}`;
-
-    const [kpisRes, trendsRes, categoryRes] = await Promise.all([
-        fetch(`http://localhost:${process.env.PORT || 5000}/api/analytics/kpis?${params}`),
-        fetch(`http://localhost:${process.env.PORT || 5000}/api/analytics/trends?${params}&interval=week`),
-        fetch(`http://localhost:${process.env.PORT || 5000}/api/analytics/category-breakdown?${params}`),
-    ]);
+// ─── Fetch raw data for specific user ─────────────────────────
+const fetchAnalyticsData = async (userId) => {
+    const endDate = new Date();
+    const startDate = new Date(endDate.getTime() - 30 * 24 * 60 * 60 * 1000);
 
     const [kpis, trends, categories] = await Promise.all([
-        kpisRes.json(),
-        trendsRes.json(),
-        categoryRes.json(),
+        getKpis(userId, { startDate, endDate }),
+        getTrends(userId, { startDate, endDate, interval: 'week' }),
+        getCategoryBreakdown(userId, { startDate, endDate }),
     ]);
 
-    // Customer stats from postgres
+    // Customer stats from postgres for this user
     const { rows: customerRows } = await pool.query(`
         SELECT
             COUNT(*)                                            AS total,
@@ -34,16 +28,20 @@ const fetchAnalyticsData = async () => {
             COALESCE(AVG(total_spending), 0)                   AS avg_spending,
             COUNT(*) FILTER (WHERE last_active < NOW() - INTERVAL '30 days') AS inactive_30
         FROM customers
-    `);
+        WHERE user_id = $1
+    `, [userId]);
 
-    const customerStats = customerRows[0];
+    const customerStats = customerRows[0] || {
+        total: 0, high_risk: 0, medium_risk: 0, low_risk: 0,
+        total_spending: 0, total_orders: 0, avg_spending: 0, inactive_30: 0
+    };
 
-    return { kpis: kpis.data, trends: trends.data, categories: categories.data, customerStats };
+    return { kpis, trends, categories, customerStats };
 };
 
 // ─── Call Groq for one section ────────────────────────────────
 const generateSection = async (sectionName, dataContext, instruction) => {
-    const prompt = `You are a business analyst for a small e-commerce business called ChurnSense.
+    const prompt = `You are a business analyst for a small e-commerce business called Keepify.
 
 ${dataContext}
 
@@ -89,13 +87,13 @@ Always use specific numbers from the data. Never be vague.`;
     }
 };
 
-// ─── Build all 4 sections ─────────────────────────────────────
-const buildAllInsights = async () => {
-    console.log('Fetching analytics data...');
-    const { kpis, trends, categories, customerStats } = await fetchAnalyticsData();
+// ─── Build all 4 sections for user ─────────────────────────────
+const buildAllInsights = async (userId) => {
+    console.log(`Fetching analytics data for user ${userId}...`);
+    const { kpis, trends, categories, customerStats } = await fetchAnalyticsData(userId);
 
     // Compute trend direction
-    const trendRevenues = trends.map(t => t.revenue);
+    const trendRevenues = (trends || []).map(t => t.revenue);
     const firstHalf  = trendRevenues.slice(0, Math.floor(trendRevenues.length / 2));
     const secondHalf = trendRevenues.slice(Math.floor(trendRevenues.length / 2));
     const firstAvg   = firstHalf.reduce((a, b) => a + b, 0) / (firstHalf.length || 1);
@@ -105,13 +103,13 @@ const buildAllInsights = async () => {
     // Best day
     const dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
     const dayTotals = {};
-    trends.forEach(t => {
+    (trends || []).forEach(t => {
         const day = dayNames[new Date(t.date).getDay()];
         dayTotals[day] = (dayTotals[day] || 0) + t.revenue;
     });
     const bestDay = Object.entries(dayTotals).sort((a, b) => b[1] - a[1])[0]?.[0] || 'N/A';
 
-    console.log('Calling Groq for 4 sections...');
+    console.log(`Calling Groq for 4 sections (user ${userId})...`);
 
     const [salesInsights, productInsights, customerInsights, categoryInsights] = await Promise.all([
         generateSection('sales',
@@ -121,7 +119,7 @@ const buildAllInsights = async () => {
 - Average order value: ৳${Number(kpis?.avgOrderValue || 0).toFixed(2)}
 - Revenue trend (first half vs second half of period): ${trendPct > 0 ? '+' : ''}${trendPct}%
 - Best performing day: ${bestDay}
-- Weekly revenue data: ${trends.map(t => `৳${t.revenue} (${new Date(t.date).toLocaleDateString('en-GB', { day:'numeric', month:'short' })})`).join(', ')}`,
+- Weekly revenue data: ${(trends || []).map(t => `৳${t.revenue} (${new Date(t.date).toLocaleDateString('en-GB', { day:'numeric', month:'short' })})`).join(', ')}`,
             'Generate 3 sales performance insights. Focus on revenue trends, order patterns, and actionable timing suggestions.'
         ),
 
@@ -149,8 +147,8 @@ const buildAllInsights = async () => {
 
         generateSection('categories',
             `Category breakdown for last 30 days:
-${categories.slice(0, 6).map(c => `- ${c.category}: ৳${c.revenue.toLocaleString()} revenue, ${c.orders} orders, ${c.percentage}% of total`).join('\n')}
-- Total categories: ${categories.length}`,
+${(categories || []).slice(0, 6).map(c => `- ${c.category}: ৳${c.revenue.toLocaleString()} revenue, ${c.orders} orders, ${c.percentage}% of total`).join('\n')}
+- Total categories: ${(categories || []).length}`,
             'Generate 3 category performance insights. Focus on top performers, underperformers, and diversification opportunities.'
         ),
     ]);
@@ -183,8 +181,8 @@ ${categories.slice(0, 6).map(c => `- ${c.category}: ৳${c.revenue.toLocaleStrin
 };
 
 // ─── Public functions ─────────────────────────────────────────
-const getAIInsights = async (forceRefresh = false) => {
-    const cacheKey = 'ai-insights:all';
+const getAIInsights = async (userId, forceRefresh = false) => {
+    const cacheKey = `ai-insights:${userId}`;
 
     if (!forceRefresh) {
         const cached = await AnalyticsSnapshot.findOne({
@@ -193,13 +191,13 @@ const getAIInsights = async (forceRefresh = false) => {
         }).lean();
 
         if (cached) {
-            console.log('Returning cached AI insights');
+            console.log(`Returning cached AI insights for user ${userId}`);
             return { ...cached.payload, fromCache: true };
         }
     }
 
-    console.log('Generating fresh AI insights...');
-    const payload   = await buildAllInsights();
+    console.log(`Generating fresh AI insights for user ${userId}...`);
+    const payload   = await buildAllInsights(userId);
     const expiresAt = new Date(Date.now() + CACHE_TTL_SECONDS * 1000);
 
     await AnalyticsSnapshot.updateOne(

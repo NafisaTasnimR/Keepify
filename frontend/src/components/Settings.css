@@ -1,0 +1,105 @@
+/* Settings.css – all styles for the settings component */
+
+.settings-container {
+    background-color: var(--bg-card);
+    border-radius: 12px;
+    box-shadow: var(--shadow-md);
+    padding: 32px 28px;
+    width: 100%;
+    max-width: 480px;
+    margin: 0 auto;
+}
+
+.settings-title {
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 24px;
+    letter-spacing: -0.3px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 16px;
+}
+
+.settings-card {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.settings-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.settings-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+.settings-input-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 6px;
+}
+
+.settings-input {
+    flex: 1;
+    border: none;
+    outline: none;
+    font-size: 16px;
+    padding: 8px 0;
+    color: var(--text-primary);
+    background-color: transparent;
+    font-weight: 450;
+}
+
+.settings-edit-hint {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 400;
+    user-select: none;
+    text-transform: lowercase;
+}
+
+.settings-value-display {
+    font-size: 16px;
+    padding: 8px 0;
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--border);
+    font-weight: 400;
+    word-break: break-all;
+}
+
+.settings-status {
+    margin-top: 22px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+    text-align: right;
+    font-size: 13px;
+}
+
+.settings-status-unsaved {
+    color: var(--warn);
+    background-color: #fef3e8;
+    padding: 4px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    display: inline-block;
+}
+
+.settings-status-saved {
+    color: var(--positive);
+    background-color: #e6f4ed;
+    padding: 4px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    display: inline-block;
+}

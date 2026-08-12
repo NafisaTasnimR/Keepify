@@ -93,7 +93,7 @@ const listOrdersHandler = async (req, res, next) => {
         const limit = Math.min(Math.max(Number(req.query.limit) || 20, 1), 100);
         const offset = (page - 1) * limit;
 
-        const { items, total } = await listOrders({
+        const { items, total } = await listOrders(req.user.uid, {
             customer: req.query.customer,
             startDate: req.query.startDate,
             endDate: req.query.endDate,
@@ -125,7 +125,7 @@ const getOrderByIdHandler = async (req, res, next) => {
             throw new Error('Invalid order id');
         }
 
-        const order = await getOrderById(id);
+        const order = await getOrderById(req.user.uid, id);
         if (!order) {
             res.status(404);
             throw new Error('Order not found');
@@ -155,7 +155,8 @@ const createOrderHandler = async (req, res, next) => {
             throw new Error(errors.join(', '));
         }
 
-        const order = await createOrder(payload);
+        const order = await createOrder(req.user.uid, payload);
+        await clearAnalyticsCache(req.user.uid);
         res.status(201).json(order);
     } catch (error) {
         next(error);
@@ -192,12 +193,13 @@ const updateOrderHandler = async (req, res, next) => {
             throw new Error(errors.join(', '));
         }
 
-        const updated = await updateOrder(id, payload);
+        const updated = await updateOrder(req.user.uid, id, payload);
         if (!updated) {
             res.status(404);
             throw new Error('Order not found');
         }
 
+        await clearAnalyticsCache(req.user.uid);
         res.json(updated);
     } catch (error) {
         next(error);
@@ -212,12 +214,13 @@ const deleteOrderHandler = async (req, res, next) => {
             throw new Error('Invalid order id');
         }
 
-        const deleted = await deleteOrder(id);
+        const deleted = await deleteOrder(req.user.uid, id);
         if (!deleted) {
             res.status(404);
             throw new Error('Order not found');
         }
 
+        await clearAnalyticsCache(req.user.uid);
         res.json({
             message: 'Order deleted',
             order: deleted,
@@ -268,9 +271,9 @@ const uploadCsvHandler = async (req, res, next) => {
         });
 
         const validRows = rows.filter((_, index) => !rowErrors.some((e) => e.row === index + 1));
-        const result = await bulkInsertOrders(validRows);
+        const result = await bulkInsertOrders(req.user.uid, validRows);
 
-        await clearAnalyticsCache();
+        await clearAnalyticsCache(req.user.uid);
 
         res.json({
             imported: result.imported,

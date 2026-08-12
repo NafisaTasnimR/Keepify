@@ -1,47 +1,48 @@
 import React, { useState, useEffect } from 'react';
 import './AIInsightsPage.css';
+import { apiFetch } from '../api/client';
 
 // ─── Icons ────────────────────────────────────────────────────
 const SalesIcon = () => (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>
+        <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" /><polyline points="17 6 23 6 23 12" />
     </svg>
 );
 const ProductIcon = () => (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
     </svg>
 );
 const CustomerIcon = () => (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
-        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
     </svg>
 );
 const CategoryIcon = () => (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
-        <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+        <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" />
+        <rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" />
     </svg>
 );
 const RefreshIcon = () => (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <polyline points="23 4 23 10 17 10"/>
-        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+        <polyline points="23 4 23 10 17 10" />
+        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
     </svg>
 );
 
 const SECTION_ICONS = {
-    sales:      <SalesIcon />,
-    products:   <ProductIcon />,
-    customers:  <CustomerIcon />,
+    sales: <SalesIcon />,
+    products: <ProductIcon />,
+    customers: <CustomerIcon />,
     categories: <CategoryIcon />,
 };
 
 const SEVERITY_CONFIG = {
-    positive: { color: '#16a34a', bg: 'rgba(22,163,74,0.07)',  border: 'rgba(22,163,74,0.2)',  dot: '#16a34a' },
-    warning:  { color: '#d97706', bg: 'rgba(245,158,11,0.07)', border: 'rgba(245,158,11,0.2)', dot: '#d97706' },
-    neutral:  { color: '#2563eb', bg: 'rgba(37,99,235,0.07)',  border: 'rgba(37,99,235,0.2)',  dot: '#2563eb' },
+    positive: { color: '#16a34a', bg: 'rgba(22,163,74,0.07)', border: 'rgba(22,163,74,0.2)', dot: '#16a34a' },
+    warning: { color: '#d97706', bg: 'rgba(245,158,11,0.07)', border: 'rgba(245,158,11,0.2)', dot: '#d97706' },
+    neutral: { color: '#2563eb', bg: 'rgba(37,99,235,0.07)', border: 'rgba(37,99,235,0.2)', dot: '#2563eb' },
 };
 
 // ─── Single insight row ───────────────────────────────────────
@@ -89,10 +90,10 @@ const SectionCard = ({ section }) => {
 
 // ─── Summary bar ──────────────────────────────────────────────
 const SummaryBar = ({ sections }) => {
-    const all      = sections.flatMap(s => s.insights);
+    const all = sections.flatMap(s => s.insights);
     const positive = all.filter(i => i.severity === 'positive').length;
     const warnings = all.filter(i => i.severity === 'warning').length;
-    const neutral  = all.filter(i => i.severity === 'neutral').length;
+    const neutral = all.filter(i => i.severity === 'neutral').length;
 
     return (
         <div className="ai-summary-bar">
@@ -124,10 +125,10 @@ const SummaryBar = ({ sections }) => {
 
 // ─── Main page ────────────────────────────────────────────────
 const AIInsightsPage = () => {
-    const [data,        setData]        = useState(null);
-    const [loading,     setLoading]     = useState(true);
-    const [refreshing,  setRefreshing]  = useState(false);
-    const [error,       setError]       = useState('');
+    const [data, setData] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
+    const [error, setError] = useState('');
 
     const fetchInsights = async (forceRefresh = false) => {
         if (forceRefresh) setRefreshing(true);
@@ -136,7 +137,7 @@ const AIInsightsPage = () => {
 
         try {
             const url = `/api/ai-insights${forceRefresh ? '?refresh=true' : ''}`;
-            const res = await fetch(url);
+            const res = await apiFetch(url);
             if (!res.ok) throw new Error('Failed to load insights');
             const json = await res.json();
             setData(json);
@@ -154,7 +155,7 @@ const AIInsightsPage = () => {
         ? new Date(iso).toLocaleString('en-GB', {
             day: 'numeric', month: 'short', year: 'numeric',
             hour: '2-digit', minute: '2-digit'
-          })
+        })
         : '';
 
     if (loading) {

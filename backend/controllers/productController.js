@@ -80,7 +80,7 @@ const listProductsHandler = async (req, res, next) => {
         const limit = Math.min(Math.max(Number(req.query.limit) || 20, 1), 100);
         const offset = (page - 1) * limit;
 
-        const { items, total } = await listProducts({
+        const { items, total } = await listProducts(req.user.uid, {
             search: req.query.search,
             limit,
             offset,
@@ -110,7 +110,7 @@ const getProductByIdHandler = async (req, res, next) => {
             throw new Error('Invalid product id');
         }
 
-        const product = await getProductById(id);
+        const product = await getProductById(req.user.uid, id);
         if (!product) {
             res.status(404);
             throw new Error('Product not found');
@@ -140,7 +140,7 @@ const createProductHandler = async (req, res, next) => {
             throw new Error(errors.join(', '));
         }
 
-        const product = await createProduct(payload);
+        const product = await createProduct(req.user.uid, payload);
         res.status(201).json(product);
     } catch (error) {
         next(error);
@@ -179,7 +179,7 @@ const updateProductHandler = async (req, res, next) => {
             throw new Error(errors.join(', '));
         }
 
-        const updated = await updateProduct(id, payload);
+        const updated = await updateProduct(req.user.uid, id, payload);
         if (!updated) {
             res.status(404);
             throw new Error('Product not found');
@@ -199,7 +199,7 @@ const deleteProductHandler = async (req, res, next) => {
             throw new Error('Invalid product id');
         }
 
-        const deleted = await deleteProduct(id);
+        const deleted = await deleteProduct(req.user.uid, id);
         if (!deleted) {
             res.status(404);
             throw new Error('Product not found');

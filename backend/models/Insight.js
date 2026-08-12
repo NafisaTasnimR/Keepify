@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 
 const InsightSchema = new mongoose.Schema(
     {
+        userId:     { type: String, required: true, index: true },
         type:       {
             type: String,
             enum: ['follow_up', 'restock', 'promotion', 'upsell'],
@@ -15,7 +16,7 @@ const InsightSchema = new mongoose.Schema(
         priority:   { type: String, enum: ['low', 'medium', 'high'], default: 'medium' },
         dismissed:  { type: Boolean, default: false },
     },
-    { timestamps: true }  // gives createdAt + updatedAt, same as Sale.js
+    { timestamps: true }
 );
 
 module.exports = mongoose.model('Insight', InsightSchema);

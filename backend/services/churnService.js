@@ -3,14 +3,13 @@ const { rebuildInsights } = require('./insightService');
 
 const ML_SERVICE_URL = process.env.ML_SERVICE_URL || 'http://localhost:5001';
 
-const scoreCustomer = async (customerId) => {
-    const customer = await getCustomerById(customerId);
+const scoreCustomer = async (userId, customerId) => {
+    const customer = await getCustomerById(userId, customerId);
     if (!customer) return null;
 
-    // Recency: days since last_active (same as notebook's InvoiceDate recency)
     const recencyDays = customer.lastActive
         ? Math.floor((Date.now() - new Date(customer.lastActive).getTime()) / (1000 * 60 * 60 * 24))
-        : 999;  // never purchased = very high recency = high churn risk
+        : 999;
 
     const response = await fetch(`${ML_SERVICE_URL}/predict`, {
         method:  'POST',
@@ -27,18 +26,18 @@ const scoreCustomer = async (customerId) => {
     }
 
     const { score } = await response.json();
-    return saveChurnScore(customerId, score);
+    return saveChurnScore(userId, customerId, score);
 };
 
-const scoreAllCustomers = async () => {
+const scoreAllCustomers = async (userId) => {
     const { pool } = require('../config/postgres');
-    const { rows } = await pool.query('SELECT id FROM customers');
+    const { rows } = await pool.query('SELECT id FROM customers WHERE user_id = $1', [userId]);
 
     const results = await Promise.allSettled(
-        rows.map((r) => scoreCustomer(r.id))
+        rows.map((r) => scoreCustomer(userId, r.id))
     );
 
-    await rebuildInsights();
+    await rebuildInsights(userId);
 
     const failed  = results.filter((r) => r.status === 'rejected').length;
     const success = results.filter((r) => r.status === 'fulfilled').length;
