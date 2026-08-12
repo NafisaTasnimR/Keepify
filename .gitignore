@@ -33,3 +33,5 @@ __pycache__/
 
 # ML model files
 *.pkl
+# Firebase
+*.json
