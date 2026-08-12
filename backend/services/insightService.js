@@ -3,7 +3,7 @@ const { pool } = require('../config/postgres');
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
-const generateInsightForCustomer = async (customer) => {
+const generateInsightForCustomer = async (userId, customer) => {
     const { id, name, churnScore, churnRisk,
             totalOrders, totalSpending, lastActive } = customer;
 
@@ -81,9 +81,6 @@ OUTPUT only this JSON, no markdown:
         return null;
     }
 
-    // ── High-value borderline customer override ───────────────
-    // Catches customers who are medium risk but too valuable
-    // to treat casually — escalate before they tip into high risk
     const isHighValue  = Number(totalSpending) > 8000;
     const isBorderline = churnScore >= 0.28 && churnScore < 0.40;
 
@@ -93,6 +90,7 @@ OUTPUT only this JSON, no markdown:
     }
 
     return {
+        userId,
         type:        parsed.type        || 'follow_up',
         title:       parsed.title       || `Insight for ${name}`,
         description: parsed.description || '',
@@ -102,7 +100,7 @@ OUTPUT only this JSON, no markdown:
     };
 };
 
-const rebuildInsights = async () => {
+const rebuildInsights = async (userId) => {
     const { rows } = await pool.query(
         `SELECT id, name,
                 churn_score    AS "churnScore",
@@ -111,11 +109,11 @@ const rebuildInsights = async () => {
                 total_spending AS "totalSpending",
                 last_active    AS "lastActive"
          FROM customers
-         WHERE churn_risk IS NOT NULL`
+         WHERE user_id = $1 AND churn_risk IS NOT NULL`,
+        [userId]
     );
 
-    console.log(`Found ${rows.length} customers to generate insights for`);
-    rows.forEach(r => console.log(`  - ${r.name}, risk: ${r.churnRisk}`));
+    console.log(`Found ${rows.length} customers to generate insights for user ${userId}`);
 
     const results = [];
     const batchSize = 2;
@@ -123,16 +121,11 @@ const rebuildInsights = async () => {
     for (let i = 0; i < rows.length; i += batchSize) {
         const batch = rows.slice(i, i + batchSize);
         const settled = await Promise.allSettled(
-            batch.map(r => generateInsightForCustomer(r))
+            batch.map(r => generateInsightForCustomer(userId, r))
         );
         settled.forEach((r, idx) => {
             if (r.status === 'fulfilled' && r.value) {
-                console.log(`✓ ${batch[idx].name}`);
                 results.push(r.value);
-            } else if (r.status === 'rejected') {
-                console.error(`✗ ${batch[idx].name}:`, r.reason?.message);
-            } else {
-                console.error(`✗ ${batch[idx].name}: returned null`);
             }
         });
 
@@ -141,26 +134,26 @@ const rebuildInsights = async () => {
         }
     }
 
-    console.log(`Saving ${results.length} insights to MongoDB`);
-    await Insight.deleteMany({});
+    console.log(`Saving ${results.length} insights to MongoDB for user ${userId}`);
+    await Insight.deleteMany({ userId });
     if (results.length) await Insight.insertMany(results);
 
     return results.length;
 };
 
-const listInsights = async ({ type, priority } = {}) => {
-    const filter = { dismissed: false };
+const listInsights = async (userId, { type, priority } = {}) => {
+    const filter = { userId, dismissed: false };
     if (type)     filter.type     = type;
     if (priority) filter.priority = priority;
     return Insight.find(filter).sort({ priority: -1, createdAt: -1 }).lean();
 };
 
-const getInsightsByCustomer = async (customerId) => {
-    return Insight.find({ customerId, dismissed: false }).lean();
+const getInsightsByCustomer = async (userId, customerId) => {
+    return Insight.find({ userId, customerId, dismissed: false }).lean();
 };
 
-const dismissInsight = async (id) => {
-    return Insight.findByIdAndUpdate(id, { dismissed: true }, { new: true });
+const dismissInsight = async (userId, id) => {
+    return Insight.findOneAndUpdate({ _id: id, userId }, { dismissed: true }, { new: true });
 };
 
 module.exports = {
