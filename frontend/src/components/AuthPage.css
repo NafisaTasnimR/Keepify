@@ -1,0 +1,70 @@
+/* AuthPage.css – styles for the authentication page */
+
+.auth-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background-color: var(--bg);
+    padding: 20px;
+}
+
+.auth-card {
+    background-color: var(--bg-card);
+    border-radius: 12px;
+    box-shadow: var(--shadow-md);
+    padding: 40px 32px;
+    width: 100%;
+    max-width: 400px;
+    text-align: center;
+}
+
+.auth-title {
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 28px;
+    letter-spacing: -0.3px;
+}
+
+.auth-google-btn {
+    width: 100%;
+    padding: 12px 0;
+    background-color: var(--bg-card);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s, border-color 0.2s;
+    margin-bottom: 24px;
+}
+
+.auth-google-btn:hover {
+    background-color: var(--bg-card);
+    border-color: var(--accent2);
+}
+
+.auth-google-btn:active {
+    background-color: var(--bg);
+}
+
+.auth-toggle {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+.auth-toggle-link {
+    color: var(--accent);
+    font-weight: 500;
+    cursor: pointer;
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.auth-toggle-link:hover {
+    color: var(--text-primary);
+    text-decoration: underline;
+}
