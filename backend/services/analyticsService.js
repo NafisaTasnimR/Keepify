@@ -8,7 +8,7 @@ const DEFAULT_CACHE_TTL_SECONDS = Number(
 const buildCacheKey = (userId, prefix, options) => {
     const { startDate, endDate, interval, limit } = options;
     const keyParts = [
-        `user:${userId}`,
+        `user:${userId || 'all'}`,
         prefix,
         interval,
         startDate.toISOString(),
@@ -50,6 +50,7 @@ const clearAnalyticsCache = async (userId = null) => {
 };
 
 const fetchTrends = async (userId, { startDate, endDate, interval }) => {
+    const safeUserId = userId || '';
     const bucketExpression =
         interval === 'week'
             ? `DATE_TRUNC('week', order_date::timestamp)`
@@ -63,10 +64,10 @@ const fetchTrends = async (userId, { startDate, endDate, interval }) => {
             COALESCE(SUM(amount), 0) AS revenue,
             COUNT(*)::int AS orders
          FROM order_analytics
-         WHERE user_id = $1 AND order_date >= $2::date AND order_date <= $3::date
+         WHERE (user_id = $1 OR user_id IS NULL) AND order_date >= $2::date AND order_date <= $3::date
          GROUP BY bucket
          ORDER BY bucket ASC`,
-        [userId, startDate.toISOString().slice(0, 10), endDate.toISOString().slice(0, 10)]
+        [safeUserId, startDate.toISOString().slice(0, 10), endDate.toISOString().slice(0, 10)]
     );
 
     return result.rows.map((item) => ({
@@ -77,6 +78,7 @@ const fetchTrends = async (userId, { startDate, endDate, interval }) => {
 };
 
 const fetchPeaks = async (userId, { startDate, endDate, interval, limit }) => {
+    const safeUserId = userId || '';
     const bucketExpression =
         interval === 'week'
             ? `DATE_TRUNC('week', order_date::timestamp)`
@@ -90,11 +92,11 @@ const fetchPeaks = async (userId, { startDate, endDate, interval, limit }) => {
             COALESCE(SUM(amount), 0) AS revenue,
             COUNT(*)::int AS orders
          FROM order_analytics
-         WHERE user_id = $1 AND order_date >= $2::date AND order_date <= $3::date
+         WHERE (user_id = $1 OR user_id IS NULL) AND order_date >= $2::date AND order_date <= $3::date
          GROUP BY bucket
          ORDER BY revenue DESC
          LIMIT $4`,
-        [userId, startDate.toISOString().slice(0, 10), endDate.toISOString().slice(0, 10), limit]
+        [safeUserId, startDate.toISOString().slice(0, 10), endDate.toISOString().slice(0, 10), limit]
     );
 
     return result.rows.map((item) => ({
@@ -105,14 +107,15 @@ const fetchPeaks = async (userId, { startDate, endDate, interval, limit }) => {
 };
 
 const fetchKpis = async (userId, { startDate, endDate }) => {
+    const safeUserId = userId || '';
     const { rows } = await pool.query(
         `SELECT
             COALESCE(SUM(amount), 0) AS total_revenue,
             COUNT(*)::int AS total_orders,
             COALESCE(AVG(amount), 0) AS avg_order_value
          FROM order_analytics
-         WHERE user_id = $1 AND order_date >= $2::date AND order_date <= $3::date`,
-        [userId, startDate.toISOString().slice(0, 10), endDate.toISOString().slice(0, 10)]
+         WHERE (user_id = $1 OR user_id IS NULL) AND order_date >= $2::date AND order_date <= $3::date`,
+        [safeUserId, startDate.toISOString().slice(0, 10), endDate.toISOString().slice(0, 10)]
     );
 
     const result = rows[0];
@@ -133,16 +136,17 @@ const fetchKpis = async (userId, { startDate, endDate }) => {
 };
 
 const fetchCategoryBreakdown = async (userId, { startDate, endDate }) => {
+    const safeUserId = userId || '';
     const { rows } = await pool.query(
         `SELECT
             COALESCE(category, 'Uncategorized') AS category,
             COALESCE(SUM(amount), 0) AS revenue,
             COUNT(*)::int AS orders
          FROM order_analytics
-         WHERE user_id = $1 AND order_date >= $2::date AND order_date <= $3::date
+         WHERE (user_id = $1 OR user_id IS NULL) AND order_date >= $2::date AND order_date <= $3::date
          GROUP BY COALESCE(category, 'Uncategorized')
          ORDER BY revenue DESC`,
-        [userId, startDate.toISOString().slice(0, 10), endDate.toISOString().slice(0, 10)]
+        [safeUserId, startDate.toISOString().slice(0, 10), endDate.toISOString().slice(0, 10)]
     );
 
     const totalRevenue = rows.reduce((sum, item) => sum + Number(item.revenue || 0), 0);
