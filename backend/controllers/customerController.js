@@ -36,7 +36,7 @@ const listCustomersHandler = async (req, res, next) => {
             ? req.query.risk.split(',').map((r) => r.trim()).filter((r) => allowedRisk.has(r))
             : undefined;
 
-        const { items, total } = await listCustomers({
+        const { items, total } = await listCustomers(req.user.uid, {
             search:  req.query.search,
             risk,
             limit,
@@ -62,7 +62,7 @@ const getCustomerByIdHandler = async (req, res, next) => {
         const id = Number(req.params.id);
         if (Number.isNaN(id)) { res.status(400); throw new Error('Invalid customer id'); }
 
-        const customer = await getCustomerById(id);
+        const customer = await getCustomerById(req.user.uid, id);
         if (!customer) { res.status(404); throw new Error('Customer not found'); }
 
         res.json(customer);
@@ -80,7 +80,7 @@ const createCustomerHandler = async (req, res, next) => {
         const errors = validateCustomerPayload(payload);
         if (errors.length) { res.status(400); throw new Error(errors.join(', ')); }
 
-        const customer = await createCustomer(payload);
+        const customer = await createCustomer(req.user.uid, payload);
         res.status(201).json(customer);
     } catch (error) { next(error); }
 };
@@ -102,7 +102,7 @@ const updateCustomerHandler = async (req, res, next) => {
         const errors = validateCustomerPayload(payload, true);
         if (errors.length) { res.status(400); throw new Error(errors.join(', ')); }
 
-        const updated = await updateCustomer(id, payload);
+        const updated = await updateCustomer(req.user.uid, id, payload);
         if (!updated) { res.status(404); throw new Error('Customer not found'); }
 
         res.json(updated);
@@ -114,7 +114,7 @@ const deleteCustomerHandler = async (req, res, next) => {
         const id = Number(req.params.id);
         if (Number.isNaN(id)) { res.status(400); throw new Error('Invalid customer id'); }
 
-        const deleted = await deleteCustomer(id);
+        const deleted = await deleteCustomer(req.user.uid, id);
         if (!deleted) { res.status(404); throw new Error('Customer not found'); }
 
         res.json({ message: 'Customer deleted', customer: deleted });
