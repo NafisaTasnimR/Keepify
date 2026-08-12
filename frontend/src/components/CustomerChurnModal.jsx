@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './CustomerChurnModal.css';
+import { apiFetch } from '../api/client';
 
 const DoughnutChart = ({ score, risk }) => {
     const canvasRef = useRef(null);
@@ -12,8 +13,8 @@ const DoughnutChart = ({ score, risk }) => {
         const size = canvas.width;
         const cx = size / 2, cy = size / 2;
         const radius = size * 0.38;
-        const thick  = size * 0.12;
-        const pct    = score ?? 0;
+        const thick = size * 0.12;
+        const pct = score ?? 0;
 
         ctx.clearRect(0, 0, size, size);
 
@@ -54,10 +55,10 @@ const RiskBadge = ({ risk }) => {
 };
 
 const TYPE_CONFIG = {
-    follow_up: { label: 'Follow Up',  color: '#dc2626', bg: 'rgba(220,38,38,0.07)'  },
-    promotion: { label: 'Promotion',  color: '#d97706', bg: 'rgba(245,158,11,0.07)' },
-    upsell:    { label: 'Upsell',     color: '#2563eb', bg: 'rgba(37,99,235,0.07)'  },
-    restock:   { label: 'Restock',    color: '#7c3aed', bg: 'rgba(124,58,237,0.07)' },
+    follow_up: { label: 'Follow Up', color: '#dc2626', bg: 'rgba(220,38,38,0.07)' },
+    promotion: { label: 'Promotion', color: '#d97706', bg: 'rgba(245,158,11,0.07)' },
+    upsell: { label: 'Upsell', color: '#2563eb', bg: 'rgba(37,99,235,0.07)' },
+    restock: { label: 'Restock', color: '#7c3aed', bg: 'rgba(124,58,237,0.07)' },
 };
 
 const InsightCard = ({ insight, onDismiss }) => {
@@ -88,13 +89,13 @@ const InsightCard = ({ insight, onDismiss }) => {
 };
 
 const CustomerChurnModal = ({ customer, onClose, onScoreCustomer, scoring }) => {
-    const [insights,        setInsights]        = useState([]);
+    const [insights, setInsights] = useState([]);
     const [loadingInsights, setLoadingInsights] = useState(true);
 
     useEffect(() => {
         if (!customer) return;
         setLoadingInsights(true);
-        fetch(`/api/insights/customer/${customer.id}`)
+        apiFetch(`/api/insights/customer/${customer.id}`)
             .then(r => r.json())
             .then(data => setInsights(Array.isArray(data) ? data : []))
             .catch(() => setInsights([]))
@@ -102,7 +103,7 @@ const CustomerChurnModal = ({ customer, onClose, onScoreCustomer, scoring }) => 
     }, [customer]);
 
     const handleDismiss = async (id) => {
-        await fetch(`/api/insights/${id}/dismiss`, { method: 'PATCH' });
+        await apiFetch(`/api/insights/${id}/dismiss`, { method: 'PATCH' });
         setInsights(prev => prev.filter(i => i._id !== id));
     };
 
@@ -113,9 +114,9 @@ const CustomerChurnModal = ({ customer, onClose, onScoreCustomer, scoring }) => 
         : '—';
 
     const stats = [
-        { label: 'Total Orders',   value: customer.totalOrders },
+        { label: 'Total Orders', value: customer.totalOrders },
         { label: 'Total Spending', value: `৳${Number(customer.totalSpending).toLocaleString()}` },
-        { label: 'Last Active',    value: fmt(customer.lastActive) },
+        { label: 'Last Active', value: fmt(customer.lastActive) },
         { label: 'Customer Since', value: fmt(customer.createdAt) },
         ...(customer.phone ? [{ label: 'Phone', value: customer.phone }] : []),
     ];

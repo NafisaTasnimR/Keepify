@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './AddOrderPage.css';
+import { apiFetch } from '../api/client';
 
 const toDateInputValue = (value) => {
     if (!value) {
@@ -54,8 +55,8 @@ const AddOrderPage = ({
             setOptionsError('');
             try {
                 const [customersRes, productsRes] = await Promise.all([
-                    fetch('/api/customers?limit=200&sortBy=name&sortDir=asc'),
-                    fetch('/api/products?limit=200&sortBy=name&sortDir=asc'),
+                    apiFetch('/api/customers?limit=200&sortBy=name&sortDir=asc'),
+                    apiFetch('/api/products?limit=200&sortBy=name&sortDir=asc'),
                 ]);
                 if (!customersRes.ok || !productsRes.ok) {
                     throw new Error('Failed to load customers/products');

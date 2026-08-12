@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import CustomerFormModal from './CustomerFormModal';
 import CustomerChurnModal from './CustomerChurnModal';
 import './CustomerPage.css';
+import { apiFetch } from '../api/client';
 
 const RiskBadge = ({ risk }) => {
     if (!risk) return <span className="risk-badge risk-none">No Data</span>;
@@ -10,19 +11,19 @@ const RiskBadge = ({ risk }) => {
 };
 
 const CustomerPage = () => {
-    const [customers,       setCustomers]       = useState([]);
-    const [pagination,      setPagination]      = useState({ page: 1, totalPages: 1, total: 0 });
-    const [loading,         setLoading]         = useState(true);
-    const [search,          setSearch]          = useState('');
-    const [sortBy,          setSortBy]          = useState('created_at');
-    const [sortDir,         setSortDir]         = useState('desc');
-    const [riskFilter,      setRiskFilter]      = useState('');
-    const [churnModal,      setChurnModal]      = useState(null);
-    const [formModal,       setFormModal]       = useState(false);
+    const [customers, setCustomers] = useState([]);
+    const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
+    const [loading, setLoading] = useState(true);
+    const [search, setSearch] = useState('');
+    const [sortBy, setSortBy] = useState('created_at');
+    const [sortDir, setSortDir] = useState('desc');
+    const [riskFilter, setRiskFilter] = useState('');
+    const [churnModal, setChurnModal] = useState(null);
+    const [formModal, setFormModal] = useState(false);
     const [editingCustomer, setEditingCustomer] = useState(null);
-    const [scoringAll,      setScoringAll]      = useState(false);
-    const [scoringId,       setScoringId]       = useState(null);
-    const [toast,           setToast]           = useState(null);
+    const [scoringAll, setScoringAll] = useState(false);
+    const [scoringId, setScoringId] = useState(null);
+    const [toast, setToast] = useState(null);
 
     const showToast = (message, type = 'success') => {
         setToast({ message, type });
@@ -36,7 +37,7 @@ const CustomerPage = () => {
                 page, limit: 10, sortBy, sortDir,
                 ...(search && { search }),
             });
-            const res  = await fetch(`/api/customers?${params}`);
+            const res = await apiFetch(`/api/customers?${params}`);
             const data = await res.json();
             let items = data.items || [];
             if (riskFilter) items = items.filter(c => c.churnRisk === riskFilter);
@@ -58,10 +59,10 @@ const CustomerPage = () => {
 
     const handleSaveCustomer = async (formData) => {
         const method = editingCustomer ? 'PUT' : 'POST';
-        const url    = editingCustomer
+        const url = editingCustomer
             ? `/api/customers/${editingCustomer.id}`
             : '/api/customers';
-        const res = await fetch(url, {
+        const res = await apiFetch(url, {
             method,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(formData),
@@ -79,7 +80,7 @@ const CustomerPage = () => {
     const handleDelete = async (id, e) => {
         e.stopPropagation();
         if (!window.confirm('Delete this customer?')) return;
-        const res = await fetch(`/api/customers/${id}`, { method: 'DELETE' });
+        const res = await apiFetch(`/api/customers/${id}`, { method: 'DELETE' });
         if (res.ok) {
             showToast('Customer deleted');
             fetchCustomers(pagination.page);
@@ -92,7 +93,7 @@ const CustomerPage = () => {
     const handleScoreCustomer = async (id) => {
         setScoringId(id);
         try {
-            const res = await fetch(`/api/customers/${id}/score`, { method: 'POST' });
+            const res = await apiFetch(`/api/customers/${id}/score`, { method: 'POST' });
             if (!res.ok) throw new Error();
             const updated = await res.json();
             setCustomers(prev => prev.map(c => c.id === id ? updated : c));
@@ -108,7 +109,7 @@ const CustomerPage = () => {
     const handleScoreAll = async () => {
         setScoringAll(true);
         try {
-            const res  = await fetch('/api/customers/score-all', { method: 'POST' });
+            const res = await apiFetch('/api/customers/score-all', { method: 'POST' });
             const data = await res.json();
             showToast(`Scored ${data.success} customers`);
             fetchCustomers(pagination.page);
@@ -226,7 +227,7 @@ const CustomerPage = () => {
                                         {customer.lastActive
                                             ? new Date(customer.lastActive).toLocaleDateString('en-GB', {
                                                 day: 'numeric', month: 'short', year: 'numeric'
-                                              })
+                                            })
                                             : '—'}
                                     </td>
                                     <td><RiskBadge risk={customer.churnRisk} /></td>

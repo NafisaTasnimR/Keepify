@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import './AnalyticsPage.css';
+import { apiFetch } from '../api/client';
 
 const periodTabs = ['Daily', 'Weekly', 'Monthly'];
 
@@ -72,9 +73,9 @@ const AnalyticsPage = () => {
                 });
 
                 const [kpisResponse, categoryResponse, activityResponse] = await Promise.all([
-                    fetch(`/api/analytics/kpis?${selectedParams}`, { signal: controller.signal }),
-                    fetch(`/api/analytics/category-breakdown?${selectedParams}`, { signal: controller.signal }),
-                    fetch(`/api/analytics/trends?${activityParams}`, { signal: controller.signal }),
+                    apiFetch(`/api/analytics/kpis?${selectedParams}`, { signal: controller.signal }),
+                    apiFetch(`/api/analytics/category-breakdown?${selectedParams}`, { signal: controller.signal }),
+                    apiFetch(`/api/analytics/trends?${activityParams}`, { signal: controller.signal }),
                 ]);
 
                 if (!kpisResponse.ok || !categoryResponse.ok || !activityResponse.ok) {
@@ -142,16 +143,16 @@ const AnalyticsPage = () => {
 
         setIsClearingCache(true);
         try {
-            const response = await fetch('/api/analytics/cache', { method: 'DELETE' });
+            const response = await apiFetch('/api/analytics/cache', { method: 'DELETE' });
             if (!response.ok) {
                 throw new Error('Failed to clear cache');
             }
-            
+
             // Refresh data after clearing cache
             // We can trigger a re-run of the useEffect by updating a state or just calling the load function if it were extracted.
             // For now, we'll just alert success and the user can refresh or we can trigger a reload.
             alert('Analytics cache cleared successfully!');
-            window.location.reload(); 
+            window.location.reload();
         } catch (err) {
             console.error('Clear cache error:', err);
             alert('An error occurred while clearing the analytics cache.');
@@ -221,9 +222,9 @@ const AnalyticsPage = () => {
                         {periodName}
                     </button>
                 ))}
-                <button 
-                    className="period-tab clear-cache-btn" 
-                    onClick={handleClearCache} 
+                <button
+                    className="period-tab clear-cache-btn"
+                    onClick={handleClearCache}
                     disabled={isClearingCache}
                 >
                     {isClearingCache ? 'Clearing...' : 'Clear Cache'}

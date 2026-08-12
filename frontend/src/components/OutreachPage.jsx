@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import OutreachComposerModal from './OutreachComposerModal';
 import './OutreachPage.css';
+import { apiFetch } from '../api/client';
 
 const RiskBadge = ({ risk }) => {
     if (!risk) return <span className="risk-badge risk-none">No Data</span>;
@@ -30,7 +31,7 @@ const OutreachPage = () => {
                 sortBy: 'churn_score',
                 sortDir: 'desc',
             });
-            const res = await fetch(`/api/customers?${params}`);
+            const res = await apiFetch(`/api/customers?${params}`);
             if (!res.ok) throw new Error('Failed to load customers');
             const data = await res.json();
             setCustomers(Array.isArray(data.items) ? data.items : []);

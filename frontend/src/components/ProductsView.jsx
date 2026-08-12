@@ -3,6 +3,7 @@ import ProductPage from './ProductPage';
 import ProductDetailsPage from './ProductDetailsPage';
 import AddProductPage from './AddProductPage';
 import ConfirmDeleteModal from './ConfirmDeleteModal';
+import { apiFetch } from '../api/client';
 
 const formatPriceLabel = (value, currencySymbol = '$') => {
     const amount = Number(value);
@@ -57,7 +58,7 @@ const ProductsView = () => {
         setProductsError('');
 
         try {
-            const response = await fetch('/api/products?limit=100');
+            const response = await apiFetch('/api/products?limit=100');
             if (!response.ok) {
                 throw new Error('Failed to load products');
             }
@@ -110,7 +111,7 @@ const ProductsView = () => {
             if (editingProductIndex !== null) {
                 const existing = products[editingProductIndex];
                 if (existing?.id) {
-                    const response = await fetch(`/api/products/${existing.id}`, {
+                    const response = await apiFetch(`/api/products/${existing.id}`, {
                         method: 'PUT',
                         headers: {
                             'Content-Type': 'application/json',
@@ -137,7 +138,7 @@ const ProductsView = () => {
                     });
                 }
             } else {
-                const response = await fetch('/api/products', {
+                const response = await apiFetch('/api/products', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -189,7 +190,7 @@ const ProductsView = () => {
         try {
             const product = deleteTarget.product;
             if (product?.id) {
-                const response = await fetch(`/api/products/${product.id}`, {
+                const response = await apiFetch(`/api/products/${product.id}`, {
                     method: 'DELETE',
                 });
 

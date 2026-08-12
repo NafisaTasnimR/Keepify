@@ -3,6 +3,7 @@ import OrderPage from './OrderPage';
 import AddOrderPage from './AddOrderPage';
 import CsvUploadModal from './CsvUploadModal';
 import ConfirmDeleteModal from './ConfirmDeleteModal';
+import { apiFetch } from '../api/client';
 
 const formatAmountLabel = (value) => {
     const amount = Number(value);
@@ -80,7 +81,7 @@ const OrdersView = () => {
             if (filters.startDate) params.set('startDate', filters.startDate);
             if (filters.endDate) params.set('endDate', filters.endDate);
 
-            const response = await fetch(`/api/orders?${params.toString()}`);
+            const response = await apiFetch(`/api/orders?${params.toString()}`);
             if (!response.ok) {
                 throw new Error('Failed to load orders');
             }
@@ -128,7 +129,7 @@ const OrdersView = () => {
         try {
             if (editingOrderIndex !== null) {
                 const existing = orders[editingOrderIndex];
-                const response = await fetch(`/api/orders/${existing.id}`, {
+                const response = await apiFetch(`/api/orders/${existing.id}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload),
@@ -144,7 +145,7 @@ const OrdersView = () => {
                     prev.map((item, index) => (index === editingOrderIndex ? updated : item))
                 );
             } else {
-                const response = await fetch('/api/orders', {
+                const response = await apiFetch('/api/orders', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload),
@@ -196,7 +197,7 @@ const OrdersView = () => {
 
         try {
             const order = deleteTarget.order;
-            const response = await fetch(`/api/orders/${order.id}`, { method: 'DELETE' });
+            const response = await apiFetch(`/api/orders/${order.id}`, { method: 'DELETE' });
 
             if (!response.ok) {
                 throw new Error('Failed to delete order');
