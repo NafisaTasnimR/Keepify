@@ -61,7 +61,7 @@ const getTrendsHandler = async (req, res, next) => {
             throw new Error('Invalid date range');
         }
 
-        const data = await getTrends(options);
+        const data = await getTrends(req.user.uid, options);
         res.json({
             ...buildResponseMeta(options),
             data,
@@ -81,7 +81,7 @@ const getPeaksHandler = async (req, res, next) => {
 
         const limit = Math.min(Math.max(Number(req.query.limit) || 5, 1), 30);
 
-        const data = await getPeaks({
+        const data = await getPeaks(req.user.uid, {
             ...options,
             limit,
         });
@@ -104,7 +104,7 @@ const getKpisHandler = async (req, res, next) => {
             throw new Error('Invalid date range');
         }
 
-        const data = await getKpis(options);
+        const data = await getKpis(req.user.uid, options);
         res.json({
             ...buildResponseMeta(options),
             data,
@@ -122,7 +122,7 @@ const getCategoryBreakdownHandler = async (req, res, next) => {
             throw new Error('Invalid date range');
         }
 
-        const data = await getCategoryBreakdown(options);
+        const data = await getCategoryBreakdown(req.user.uid, options);
         res.json({
             ...buildResponseMeta(options),
             data,

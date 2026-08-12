@@ -5,19 +5,10 @@ const DEFAULT_CACHE_TTL_SECONDS = Number(
     process.env.ANALYTICS_CACHE_TTL_SECONDS || 900
 );
 
-const ANALYTICS_SOURCE_SQL = `
-    SELECT
-        order_date,
-        amount,
-        quantity,
-        category,
-        status
-    FROM order_analytics
-`;
-
-const buildCacheKey = (prefix, options) => {
+const buildCacheKey = (userId, prefix, options) => {
     const { startDate, endDate, interval, limit } = options;
     const keyParts = [
+        `user:${userId}`,
         prefix,
         interval,
         startDate.toISOString(),
@@ -50,18 +41,15 @@ const setCachedSnapshot = async (key, payload, ttlSeconds = DEFAULT_CACHE_TTL_SE
     );
 };
 
-const clearAnalyticsCache = async () => {
-    await AnalyticsSnapshot.deleteMany({});
+const clearAnalyticsCache = async (userId = null) => {
+    if (userId) {
+        await AnalyticsSnapshot.deleteMany({ key: new RegExp(`^user:${userId}:`) });
+    } else {
+        await AnalyticsSnapshot.deleteMany({});
+    }
 };
 
-const buildMatchStage = (startDate, endDate) => ({
-    order_date: {
-        $gte: startDate,
-        $lte: endDate,
-    },
-});
-
-const fetchTrends = async ({ startDate, endDate, interval }) => {
+const fetchTrends = async (userId, { startDate, endDate, interval }) => {
     const bucketExpression =
         interval === 'week'
             ? `DATE_TRUNC('week', order_date::timestamp)`
@@ -75,10 +63,10 @@ const fetchTrends = async ({ startDate, endDate, interval }) => {
             COALESCE(SUM(amount), 0) AS revenue,
             COUNT(*)::int AS orders
          FROM order_analytics
-         WHERE order_date >= $1::date AND order_date <= $2::date
+         WHERE user_id = $1 AND order_date >= $2::date AND order_date <= $3::date
          GROUP BY bucket
          ORDER BY bucket ASC`,
-        [startDate.toISOString().slice(0, 10), endDate.toISOString().slice(0, 10)]
+        [userId, startDate.toISOString().slice(0, 10), endDate.toISOString().slice(0, 10)]
     );
 
     return result.rows.map((item) => ({
@@ -88,7 +76,7 @@ const fetchTrends = async ({ startDate, endDate, interval }) => {
     }));
 };
 
-const fetchPeaks = async ({ startDate, endDate, interval, limit }) => {
+const fetchPeaks = async (userId, { startDate, endDate, interval, limit }) => {
     const bucketExpression =
         interval === 'week'
             ? `DATE_TRUNC('week', order_date::timestamp)`
@@ -102,11 +90,11 @@ const fetchPeaks = async ({ startDate, endDate, interval, limit }) => {
             COALESCE(SUM(amount), 0) AS revenue,
             COUNT(*)::int AS orders
          FROM order_analytics
-         WHERE order_date >= $1::date AND order_date <= $2::date
+         WHERE user_id = $1 AND order_date >= $2::date AND order_date <= $3::date
          GROUP BY bucket
          ORDER BY revenue DESC
-         LIMIT $3`,
-        [startDate.toISOString().slice(0, 10), endDate.toISOString().slice(0, 10), limit]
+         LIMIT $4`,
+        [userId, startDate.toISOString().slice(0, 10), endDate.toISOString().slice(0, 10), limit]
     );
 
     return result.rows.map((item) => ({
@@ -116,15 +104,15 @@ const fetchPeaks = async ({ startDate, endDate, interval, limit }) => {
     }));
 };
 
-const fetchKpis = async ({ startDate, endDate }) => {
+const fetchKpis = async (userId, { startDate, endDate }) => {
     const { rows } = await pool.query(
         `SELECT
             COALESCE(SUM(amount), 0) AS total_revenue,
             COUNT(*)::int AS total_orders,
             COALESCE(AVG(amount), 0) AS avg_order_value
          FROM order_analytics
-         WHERE order_date >= $1::date AND order_date <= $2::date`,
-        [startDate.toISOString().slice(0, 10), endDate.toISOString().slice(0, 10)]
+         WHERE user_id = $1 AND order_date >= $2::date AND order_date <= $3::date`,
+        [userId, startDate.toISOString().slice(0, 10), endDate.toISOString().slice(0, 10)]
     );
 
     const result = rows[0];
@@ -144,17 +132,17 @@ const fetchKpis = async ({ startDate, endDate }) => {
     };
 };
 
-const fetchCategoryBreakdown = async ({ startDate, endDate }) => {
+const fetchCategoryBreakdown = async (userId, { startDate, endDate }) => {
     const { rows } = await pool.query(
         `SELECT
             COALESCE(category, 'Uncategorized') AS category,
             COALESCE(SUM(amount), 0) AS revenue,
             COUNT(*)::int AS orders
          FROM order_analytics
-         WHERE order_date >= $1::date AND order_date <= $2::date
+         WHERE user_id = $1 AND order_date >= $2::date AND order_date <= $3::date
          GROUP BY COALESCE(category, 'Uncategorized')
          ORDER BY revenue DESC`,
-        [startDate.toISOString().slice(0, 10), endDate.toISOString().slice(0, 10)]
+        [userId, startDate.toISOString().slice(0, 10), endDate.toISOString().slice(0, 10)]
     );
 
     const totalRevenue = rows.reduce((sum, item) => sum + Number(item.revenue || 0), 0);
@@ -167,50 +155,50 @@ const fetchCategoryBreakdown = async ({ startDate, endDate }) => {
     }));
 };
 
-const getTrends = async (options) => {
-    const cacheKey = buildCacheKey('trends', options);
+const getTrends = async (userId, options) => {
+    const cacheKey = buildCacheKey(userId, 'trends', options);
     const cached = await getCachedSnapshot(cacheKey);
     if (cached) {
         return cached;
     }
 
-    const payload = await fetchTrends(options);
+    const payload = await fetchTrends(userId, options);
     await setCachedSnapshot(cacheKey, payload);
     return payload;
 };
 
-const getPeaks = async (options) => {
-    const cacheKey = buildCacheKey('peaks', options);
+const getPeaks = async (userId, options) => {
+    const cacheKey = buildCacheKey(userId, 'peaks', options);
     const cached = await getCachedSnapshot(cacheKey);
     if (cached) {
         return cached;
     }
 
-    const payload = await fetchPeaks(options);
+    const payload = await fetchPeaks(userId, options);
     await setCachedSnapshot(cacheKey, payload);
     return payload;
 };
 
-const getKpis = async (options) => {
-    const cacheKey = buildCacheKey('kpis', options);
+const getKpis = async (userId, options) => {
+    const cacheKey = buildCacheKey(userId, 'kpis', options);
     const cached = await getCachedSnapshot(cacheKey);
     if (cached) {
         return cached;
     }
 
-    const payload = await fetchKpis(options);
+    const payload = await fetchKpis(userId, options);
     await setCachedSnapshot(cacheKey, payload);
     return payload;
 };
 
-const getCategoryBreakdown = async (options) => {
-    const cacheKey = buildCacheKey('category-breakdown', options);
+const getCategoryBreakdown = async (userId, options) => {
+    const cacheKey = buildCacheKey(userId, 'category-breakdown', options);
     const cached = await getCachedSnapshot(cacheKey);
     if (cached) {
         return cached;
     }
 
-    const payload = await fetchCategoryBreakdown(options);
+    const payload = await fetchCategoryBreakdown(userId, options);
     await setCachedSnapshot(cacheKey, payload);
     return payload;
 };
@@ -220,4 +208,5 @@ module.exports = {
     getPeaks,
     getKpis,
     getCategoryBreakdown,
+    clearAnalyticsCache,
 };

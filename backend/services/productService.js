@@ -2,6 +2,7 @@ const { pool } = require('../config/postgres');
 
 const PRODUCT_COLUMNS = [
     'id',
+    'user_id',
     'name',
     'sku',
     'price',
@@ -14,6 +15,7 @@ const PRODUCT_COLUMNS = [
 
 const PRODUCT_SELECT_COLUMNS = [
     'p.id',
+    'p.user_id',
     'p.name',
     'p.sku',
     'p.price',
@@ -33,6 +35,7 @@ const PRODUCT_SELECT_SQL = `
 
 const mapProduct = (row) => ({
     id: row.id,
+    userId: row.user_id,
     name: row.name,
     sku: row.sku,
     price: row.price !== null ? Number(row.price) : null,
@@ -48,8 +51,9 @@ const ensureProductsTable = async () => {
     await pool.query(`
     CREATE TABLE IF NOT EXISTS products (
       id SERIAL PRIMARY KEY,
+      user_id TEXT NOT NULL,
       name TEXT NOT NULL,
-      sku TEXT UNIQUE,
+      sku TEXT,
       price NUMERIC(10, 2) NOT NULL DEFAULT 0,
       stock INTEGER NOT NULL DEFAULT 0,
       category TEXT,
@@ -57,6 +61,17 @@ const ensureProductsTable = async () => {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
+
+    ALTER TABLE products ADD COLUMN IF NOT EXISTS user_id TEXT;
+    CREATE INDEX IF NOT EXISTS idx_products_user_id ON products(user_id);
+
+    -- Drop old global unique constraint on sku if it exists
+    DO $$ BEGIN
+        ALTER TABLE products DROP CONSTRAINT IF EXISTS products_sku_key;
+    EXCEPTION WHEN undefined_object THEN NULL; END $$;
+
+    -- Add per-user unique sku constraint
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_products_user_sku ON products(user_id, sku) WHERE sku IS NOT NULL;
   `);
 };
 
@@ -69,9 +84,9 @@ const ensureProductImagesTable = async () => {
     `);
 };
 
-const listProducts = async ({ search, limit, offset, sortBy, sortDir }) => {
-    const whereValues = [];
-    const whereClauses = [];
+const listProducts = async (userId, { search, limit, offset, sortBy, sortDir }) => {
+    const whereValues = [userId];
+    const whereClauses = ['p.user_id = $1'];
 
     if (search) {
         whereValues.push(`%${search}%`);
@@ -80,7 +95,7 @@ const listProducts = async ({ search, limit, offset, sortBy, sortDir }) => {
         );
     }
 
-    const whereSql = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
+    const whereSql = `WHERE ${whereClauses.join(' AND ')}`;
     const allowedSort = new Set(['name', 'price', 'stock', 'created_at', 'updated_at']);
     const safeSortBy = allowedSort.has(sortBy) ? sortBy : 'created_at';
     const safeSortDir = sortDir === 'asc' ? 'ASC' : 'DESC';
@@ -108,16 +123,16 @@ const listProducts = async ({ search, limit, offset, sortBy, sortDir }) => {
     };
 };
 
-const getProductById = async (id) => {
+const getProductById = async (userId, id) => {
     const result = await pool.query(
-        `${PRODUCT_SELECT_SQL} WHERE p.id = $1`,
-        [id]
+        `${PRODUCT_SELECT_SQL} WHERE p.id = $1 AND p.user_id = $2`,
+        [id, userId]
     );
 
     return result.rows[0] ? mapProduct(result.rows[0]) : null;
 };
 
-const createProduct = async (payload) => {
+const createProduct = async (userId, payload) => {
     const { name, sku, price, stock, category, status, imageUrl } = payload;
     const client = await pool.connect();
 
@@ -125,10 +140,10 @@ const createProduct = async (payload) => {
         await client.query('BEGIN');
 
         const result = await client.query(
-            `INSERT INTO products (name, sku, price, stock, category, status)
-     VALUES ($1, $2, $3, $4, $5, $6)
+            `INSERT INTO products (user_id, name, sku, price, stock, category, status)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
      RETURNING id`,
-            [name, sku, price, stock, category, status]
+            [userId, name, sku, price, stock, category, status]
         );
 
         const productId = result.rows[0].id;
@@ -156,7 +171,7 @@ const createProduct = async (payload) => {
     }
 };
 
-const updateProduct = async (id, payload) => {
+const updateProduct = async (userId, id, payload) => {
     const fields = [];
     const values = [];
 
@@ -191,12 +206,12 @@ const updateProduct = async (id, payload) => {
 
         if (fields.length > 0) {
             fields.push('updated_at = NOW()');
-            values.push(id);
+            values.push(id, userId);
 
             const result = await client.query(
                 `UPDATE products
      SET ${fields.join(', ')}
-     WHERE id = $${values.length}`,
+     WHERE id = $${values.length - 1} AND user_id = $${values.length}`,
                 values
             );
 
@@ -206,8 +221,8 @@ const updateProduct = async (id, payload) => {
             }
         } else {
             const exists = await client.query(
-                'SELECT 1 FROM products WHERE id = $1',
-                [id]
+                'SELECT 1 FROM products WHERE id = $1 AND user_id = $2',
+                [id, userId]
             );
 
             if (exists.rowCount === 0) {
@@ -247,10 +262,10 @@ const updateProduct = async (id, payload) => {
     }
 };
 
-const deleteProduct = async (id) => {
+const deleteProduct = async (userId, id) => {
     const result = await pool.query(
-        `DELETE FROM products WHERE id = $1 RETURNING ${PRODUCT_COLUMNS.join(', ')}`,
-        [id]
+        `DELETE FROM products WHERE id = $1 AND user_id = $2 RETURNING ${PRODUCT_COLUMNS.join(', ')}`,
+        [id, userId]
     );
 
     return result.rows[0] ? mapProduct(result.rows[0]) : null;
