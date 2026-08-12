@@ -2,6 +2,7 @@ const { pool } = require('../config/postgres');
 
 const ORDER_COLUMNS = [
     'id',
+    'user_id',
     'customer_id',
     'product_id',
     'customer_name',
@@ -21,6 +22,7 @@ const ORDER_COLUMNS = [
 const ORDER_SELECT_SQL = `
     SELECT
         id,
+        user_id,
         customer_id,
         product_id,
         customer_name,
@@ -40,6 +42,7 @@ const ORDER_SELECT_SQL = `
 
 const ANALYTICS_TABLE_COLUMNS = [
     'order_id',
+    'user_id',
     'customer_id',
     'customer_name',
     'customer_email',
@@ -57,6 +60,7 @@ const ANALYTICS_TABLE_COLUMNS = [
 
 const mapOrder = (row) => ({
     id: row.id,
+    userId: row.user_id,
     customerId: row.customer_id !== null ? Number(row.customer_id) : null,
     productId: row.product_id !== null ? Number(row.product_id) : null,
     customerName: row.customer_name ?? null,
@@ -77,6 +81,7 @@ const ensureOrdersTable = async () => {
     await pool.query(`
         CREATE TABLE IF NOT EXISTS orders (
             id SERIAL PRIMARY KEY,
+            user_id TEXT NOT NULL,
             customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL,
             product_id INTEGER REFERENCES products(id) ON DELETE SET NULL,
             customer_name TEXT,
@@ -93,6 +98,7 @@ const ensureOrdersTable = async () => {
             updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         );
 
+        ALTER TABLE orders ADD COLUMN IF NOT EXISTS user_id TEXT;
         ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL;
         ALTER TABLE orders ADD COLUMN IF NOT EXISTS product_id INTEGER REFERENCES products(id) ON DELETE SET NULL;
         ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_name TEXT;
@@ -105,6 +111,8 @@ const ensureOrdersTable = async () => {
         ALTER TABLE orders ADD COLUMN IF NOT EXISTS order_date DATE NOT NULL DEFAULT CURRENT_DATE;
         ALTER TABLE orders ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'pending';
         ALTER TABLE orders ADD COLUMN IF NOT EXISTS category TEXT;
+
+        CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders(user_id);
         CREATE INDEX IF NOT EXISTS idx_orders_customer_id ON orders(customer_id);
         CREATE INDEX IF NOT EXISTS idx_orders_product_id ON orders(product_id);
         CREATE INDEX IF NOT EXISTS idx_orders_order_date ON orders(order_date);
@@ -115,6 +123,7 @@ const ensureOrderAnalyticsTable = async () => {
     await pool.query(`
         CREATE TABLE IF NOT EXISTS order_analytics (
             order_id INTEGER PRIMARY KEY REFERENCES orders(id) ON DELETE CASCADE,
+            user_id TEXT,
             customer_id INTEGER,
             customer_name TEXT,
             customer_email TEXT,
@@ -130,6 +139,7 @@ const ensureOrderAnalyticsTable = async () => {
             updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         );
 
+        ALTER TABLE order_analytics ADD COLUMN IF NOT EXISTS user_id TEXT;
         ALTER TABLE order_analytics ADD COLUMN IF NOT EXISTS customer_id INTEGER;
         ALTER TABLE order_analytics ADD COLUMN IF NOT EXISTS customer_name TEXT;
         ALTER TABLE order_analytics ADD COLUMN IF NOT EXISTS customer_email TEXT;
@@ -143,12 +153,15 @@ const ensureOrderAnalyticsTable = async () => {
         ALTER TABLE order_analytics ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'pending';
         ALTER TABLE order_analytics ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
         ALTER TABLE order_analytics ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+
+        CREATE INDEX IF NOT EXISTS idx_order_analytics_user_id ON order_analytics(user_id);
     `);
 
     await pool.query(`
         INSERT INTO order_analytics (${ANALYTICS_TABLE_COLUMNS.join(', ')})
         SELECT
             o.id AS order_id,
+            o.user_id,
             o.customer_id,
             COALESCE(o.customer_name, c.name) AS customer_name,
             COALESCE(o.customer_email, c.email) AS customer_email,
@@ -166,6 +179,7 @@ const ensureOrderAnalyticsTable = async () => {
         LEFT JOIN customers c ON c.id = o.customer_id
         LEFT JOIN products p ON p.id = o.product_id
         ON CONFLICT (order_id) DO UPDATE SET
+            user_id = EXCLUDED.user_id,
             customer_id = EXCLUDED.customer_id,
             customer_name = EXCLUDED.customer_name,
             customer_email = EXCLUDED.customer_email,
@@ -187,6 +201,7 @@ const syncOrderAnalyticsRecord = async (client, orderId) => {
         `INSERT INTO order_analytics (${ANALYTICS_TABLE_COLUMNS.join(', ')})
          SELECT
             o.id AS order_id,
+            o.user_id,
             o.customer_id,
             COALESCE(o.customer_name, c.name) AS customer_name,
             COALESCE(o.customer_email, c.email) AS customer_email,
@@ -205,6 +220,7 @@ const syncOrderAnalyticsRecord = async (client, orderId) => {
          LEFT JOIN products p ON p.id = o.product_id
          WHERE o.id = $1
          ON CONFLICT (order_id) DO UPDATE SET
+            user_id = EXCLUDED.user_id,
             customer_id = EXCLUDED.customer_id,
             customer_name = EXCLUDED.customer_name,
             customer_email = EXCLUDED.customer_email,
@@ -226,10 +242,10 @@ const deleteOrderAnalyticsRecord = async (client, orderId) => {
     await client.query('DELETE FROM order_analytics WHERE order_id = $1', [orderId]);
 };
 
-const fetchOrderDetails = async (client, customerId, productId) => {
+const fetchOrderDetails = async (client, userId, customerId, productId) => {
     const [customerResult, productResult] = await Promise.all([
-        client.query('SELECT id, name, email FROM customers WHERE id = $1', [customerId]),
-        client.query('SELECT id, name, sku, category, price FROM products WHERE id = $1', [productId]),
+        client.query('SELECT id, name, email FROM customers WHERE id = $1 AND user_id = $2', [customerId, userId]),
+        client.query('SELECT id, name, sku, category, price FROM products WHERE id = $1 AND user_id = $2', [productId, userId]),
     ]);
 
     const customer = customerResult.rows[0] || null;
@@ -246,7 +262,7 @@ const fetchOrderDetails = async (client, customerId, productId) => {
     return { customer, product };
 };
 
-const buildOrderWritePayload = async (client, payload, existingOrder = null) => {
+const buildOrderWritePayload = async (client, userId, payload, existingOrder = null) => {
     const customerId = payload.customerId !== undefined ? payload.customerId : existingOrder?.customerId;
     const productId = payload.productId !== undefined ? payload.productId : existingOrder?.productId;
     const quantity = payload.quantity !== undefined ? payload.quantity : existingOrder?.quantity ?? 1;
@@ -263,7 +279,7 @@ const buildOrderWritePayload = async (client, payload, existingOrder = null) => 
         throw new Error('productId is required');
     }
 
-    const { customer, product } = await fetchOrderDetails(client, customerId, productId);
+    const { customer, product } = await fetchOrderDetails(client, userId, customerId, productId);
     const resolvedAmount = amountProvided !== null ? amountProvided : Number(product.price || 0) * Number(quantity || 0);
 
     return {
@@ -282,9 +298,9 @@ const buildOrderWritePayload = async (client, payload, existingOrder = null) => 
     };
 };
 
-const listOrders = async ({ customer, startDate, endDate, limit, offset, sortBy, sortDir }) => {
-    const whereValues = [];
-    const whereClauses = [];
+const listOrders = async (userId, { customer, startDate, endDate, limit, offset, sortBy, sortDir }) => {
+    const whereValues = [userId];
+    const whereClauses = ['user_id = $1'];
 
     if (customer) {
         whereValues.push(`%${customer}%`);
@@ -306,7 +322,7 @@ const listOrders = async ({ customer, startDate, endDate, limit, offset, sortBy,
         whereClauses.push(`order_date <= $${whereValues.length}`);
     }
 
-    const whereSql = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
+    const whereSql = `WHERE ${whereClauses.join(' AND ')}`;
     const allowedSort = new Set([
         'customer_name',
         'product_name',
@@ -345,21 +361,22 @@ const listOrders = async ({ customer, startDate, endDate, limit, offset, sortBy,
     };
 };
 
-const getOrderById = async (id) => {
-    const result = await pool.query(`${ORDER_SELECT_SQL} WHERE id = $1`, [id]);
+const getOrderById = async (userId, id) => {
+    const result = await pool.query(`${ORDER_SELECT_SQL} WHERE id = $1 AND user_id = $2`, [id, userId]);
     return result.rows[0] ? mapOrder(result.rows[0]) : null;
 };
 
-const createOrder = async (payload) => {
+const createOrder = async (userId, payload) => {
     const client = await pool.connect();
 
     try {
         await client.query('BEGIN');
 
-        const resolved = await buildOrderWritePayload(client, payload);
+        const resolved = await buildOrderWritePayload(client, userId, payload);
 
         const result = await client.query(
             `INSERT INTO orders (
+                user_id,
                 customer_id,
                 product_id,
                 customer_name,
@@ -373,9 +390,10 @@ const createOrder = async (payload) => {
                 status,
                 category
             )
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, COALESCE($10, CURRENT_DATE), $11, $12)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, COALESCE($11, CURRENT_DATE), $12, $13)
              RETURNING ${ORDER_COLUMNS.join(', ')}`,
             [
+                userId,
                 resolved.customerId,
                 resolved.productId,
                 resolved.customerName,
@@ -391,6 +409,8 @@ const createOrder = async (payload) => {
             ]
         );
 
+        await syncOrderAnalyticsRecord(client, result.rows[0].id);
+
         await client.query('COMMIT');
 
         return mapOrder(result.rows[0]);
@@ -402,7 +422,7 @@ const createOrder = async (payload) => {
     }
 };
 
-const updateOrder = async (id, payload) => {
+const updateOrder = async (userId, id, payload) => {
     const client = await pool.connect();
 
     try {
@@ -411,6 +431,7 @@ const updateOrder = async (id, payload) => {
         const existingResult = await client.query(
             `SELECT
                 id,
+                user_id AS "userId",
                 customer_id AS "customerId",
                 product_id AS "productId",
                 customer_name AS "customerName",
@@ -424,8 +445,8 @@ const updateOrder = async (id, payload) => {
                 status,
                 category
              FROM orders
-             WHERE id = $1`,
-            [id]
+             WHERE id = $1 AND user_id = $2`,
+            [id, userId]
         );
 
         const existingOrder = existingResult.rows[0] || null;
@@ -434,7 +455,7 @@ const updateOrder = async (id, payload) => {
             return null;
         }
 
-        const resolved = await buildOrderWritePayload(client, payload, existingOrder);
+        const resolved = await buildOrderWritePayload(client, userId, payload, existingOrder);
         const result = await client.query(
             `UPDATE orders
              SET customer_id = $1,
@@ -450,7 +471,7 @@ const updateOrder = async (id, payload) => {
                  status = $11,
                  category = $12,
                  updated_at = NOW()
-             WHERE id = $13
+             WHERE id = $13 AND user_id = $14
              RETURNING ${ORDER_COLUMNS.join(', ')}`,
             [
                 resolved.customerId,
@@ -466,8 +487,11 @@ const updateOrder = async (id, payload) => {
                 resolved.status,
                 resolved.category,
                 id,
+                userId,
             ]
         );
+
+        await syncOrderAnalyticsRecord(client, id);
 
         await client.query('COMMIT');
 
@@ -480,7 +504,7 @@ const updateOrder = async (id, payload) => {
     }
 };
 
-const deleteOrder = async (id) => {
+const deleteOrder = async (userId, id) => {
     const client = await pool.connect();
 
     try {
@@ -488,13 +512,13 @@ const deleteOrder = async (id) => {
 
         const result = await client.query(
             `DELETE FROM orders
-             WHERE id = $1
+             WHERE id = $1 AND user_id = $2
              RETURNING ${ORDER_COLUMNS.join(', ')}`,
-            [id]
+            [id, userId]
         );
 
         if (result.rows[0]) {
-            // Analytics record is now redundant as orders table is denormalized
+            await deleteOrderAnalyticsRecord(client, id);
         }
 
         await client.query('COMMIT');
@@ -507,7 +531,7 @@ const deleteOrder = async (id) => {
     }
 };
 
-const bulkInsertOrders = async (rows) => {
+const bulkInsertOrders = async (userId, rows) => {
     const client = await pool.connect();
     const errors = [];
     let imported = 0;
@@ -519,9 +543,10 @@ const bulkInsertOrders = async (rows) => {
             const row = rows[i];
 
             try {
-                const resolved = await buildOrderWritePayload(client, row);
+                const resolved = await buildOrderWritePayload(client, userId, row);
                 const insertResult = await client.query(
                     `INSERT INTO orders (
+                        user_id,
                         customer_id,
                         product_id,
                         customer_name,
@@ -535,9 +560,10 @@ const bulkInsertOrders = async (rows) => {
                         status,
                         category
                     )
-                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, COALESCE($10, CURRENT_DATE), $11, $12)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, COALESCE($11, CURRENT_DATE), $12, $13)
                      RETURNING id`,
                     [
+                        userId,
                         resolved.customerId,
                         resolved.productId,
                         resolved.customerName,
@@ -571,15 +597,15 @@ const bulkInsertOrders = async (rows) => {
     return { imported, failed: errors.length, errors };
 };
 
-const getCustomerOrderStats = async (customerEmail) => {
+const getCustomerOrderStats = async (userId, customerEmail) => {
     const result = await pool.query(
         `SELECT
             COUNT(*)::int AS order_count,
             COALESCE(SUM(amount), 0) AS total_spend,
             MAX(order_date) AS last_order_date
          FROM orders
-         WHERE customer_email = $1`,
-        [customerEmail]
+         WHERE user_id = $1 AND customer_email = $2`,
+        [userId, customerEmail]
     );
 
     const row = result.rows[0];
