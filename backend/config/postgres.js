@@ -21,10 +21,17 @@ const buildPoolConfig = () => {
 const pool = new Pool(buildPoolConfig());
 
 const connectPostgres = async () => {
+    const hasConfig = process.env.POSTGRES_URL || process.env.POSTGRES_HOST || process.env.POSTGRES_USER;
+    if (!hasConfig) {
+        console.warn('Postgres connection info not found in environment. Skipping Postgres connection.');
+        return;
+    }
     const client = await pool.connect();
     try {
         await client.query('SELECT 1');
         console.log('PostgreSQL Connected!');
+    } catch (err) {
+        console.error('Error connecting to Postgres:', err.message);
     } finally {
         client.release();
     }
