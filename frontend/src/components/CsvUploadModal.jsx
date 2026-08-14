@@ -35,6 +35,10 @@ const CsvUploadModal = ({ isOpen, onClose, onUploaded }) => {
 
         const xhr = new XMLHttpRequest();
         xhr.open('POST', '/api/orders/upload-csv');
+        const token = localStorage.getItem('token');
+        if (token) {
+            xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+        }
 
         xhr.upload.onprogress = (event) => {
             if (event.lengthComputable) {

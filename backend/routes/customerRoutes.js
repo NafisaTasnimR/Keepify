@@ -21,7 +21,7 @@ router.post('/', createCustomerHandler);
 // Score all customers via ML service, then rebuild insights
 router.post('/score-all', async (req, res, next) => {
     try {
-        const result = await scoreAllCustomers();
+        const result = await scoreAllCustomers(req.user.uid);
         res.json({ message: 'Scoring complete', ...result });
     } catch (error) { next(error); }
 });
@@ -37,7 +37,7 @@ router.post('/:id/score', async (req, res, next) => {
         const id = Number(req.params.id);
         if (Number.isNaN(id)) { res.status(400); throw new Error('Invalid customer id'); }
 
-        const updated = await scoreCustomer(id);
+        const updated = await scoreCustomer(req.user.uid, id);
         if (!updated) { res.status(404); throw new Error('Customer not found'); }
 
         res.json(updated);
@@ -58,10 +58,10 @@ router.post('/:id/churn-score', async (req, res, next) => {
             res.status(400); throw new Error('score must be a number between 0 and 1');
         }
 
-        const updated = await saveChurnScore(id, score);
+        const updated = await saveChurnScore(req.user.uid, id, score);
         if (!updated) { res.status(404); throw new Error('Customer not found'); }
 
-        await rebuildInsights();
+        await rebuildInsights(req.user.uid);
         res.json(updated);
     } catch (error) { next(error); }
 });
