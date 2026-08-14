@@ -28,7 +28,7 @@ const fetchAnalyticsData = async (userId) => {
             COALESCE(AVG(total_spending), 0)                   AS avg_spending,
             COUNT(*) FILTER (WHERE last_active < NOW() - INTERVAL '30 days') AS inactive_30
         FROM customers
-        WHERE user_id = $1
+        WHERE user_id = $1 OR user_id IS NULL
     `, [userId]);
 
     const customerStats = customerRows[0] || {

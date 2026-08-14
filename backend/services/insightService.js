@@ -109,7 +109,7 @@ const rebuildInsights = async (userId) => {
                 total_spending AS "totalSpending",
                 last_active    AS "lastActive"
          FROM customers
-         WHERE user_id = $1 AND churn_risk IS NOT NULL`,
+         WHERE (user_id = $1 OR user_id IS NULL) AND churn_risk IS NOT NULL`,
         [userId]
     );
 

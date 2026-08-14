@@ -31,7 +31,10 @@ const scoreCustomer = async (userId, customerId) => {
 
 const scoreAllCustomers = async (userId) => {
     const { pool } = require('../config/postgres');
-    const { rows } = await pool.query('SELECT id FROM customers WHERE user_id = $1', [userId]);
+    const { rows } = await pool.query(
+        'SELECT id FROM customers WHERE user_id = $1 OR user_id IS NULL',
+        [userId]
+    );
 
     const results = await Promise.allSettled(
         rows.map((r) => scoreCustomer(userId, r.id))
