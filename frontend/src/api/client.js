@@ -28,7 +28,7 @@ export async function apiFetch(path, options = {}) {
         } catch (e) {
             // ignore
         }
-        window.location.href = '/auth';
+        window.location.href = '/';
     }
 
     return res;

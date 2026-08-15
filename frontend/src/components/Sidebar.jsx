@@ -11,7 +11,7 @@ const Sidebar = ({
     <aside className={`sidebar ${isOpen ? 'is-open' : ''}`}>
         <div className="logo">
             <div className="logo-row">
-                <h2>ChurnSense</h2>
+                <h2>Keepify</h2>
                 <button
                     type="button"
                     className="sidebar-close"

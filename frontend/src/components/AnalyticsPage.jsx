@@ -177,9 +177,15 @@ const AnalyticsPage = () => {
 
     const activityRows = useMemo(() => {
         const weekOrder = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-        const lookup = new Map(weekdayActivity.map(item => [item.day, item]));
+        const totals = new Map(weekOrder.map(day => [day, 0]));
 
-        return weekOrder.map(day => lookup.get(day) || { day, value: 0 });
+        weekdayActivity.forEach(item => {
+            if (totals.has(item.day)) {
+                totals.set(item.day, totals.get(item.day) + item.value);
+            }
+        });
+
+        return weekOrder.map(day => ({ day, value: totals.get(day) }));
     }, [weekdayActivity]);
 
     const maxActivityValue = useMemo(
@@ -264,19 +270,44 @@ const AnalyticsPage = () => {
                     <div className="activity-chart" aria-label="Weekday activity chart">
                         {loading ? (
                             <div className="card-placeholder">Loading weekday activity...</div>
-                        ) : activityRows.length ? (
-                            activityRows.map(item => {
-                                const barHeight = Math.max((item.value / maxActivityValue) * 100, 14);
+                        ) : activityRows.some(item => item.value > 0) ? (
+                            <>
+                                <div className="activity-gridlines" aria-hidden="true">
+                                    <span />
+                                    <span />
+                                    <span />
+                                </div>
+                                <div className="activity-bars">
+                                    {activityRows.map(item => {
+                                        const barHeight = item.value > 0
+                                            ? Math.max((item.value / maxActivityValue) * 100, 6)
+                                            : 0;
+                                        const isPeak = item.value === maxActivityValue && item.value > 0;
 
-                                return (
-                                    <div key={item.day} className="activity-column">
-                                        <div className="activity-bar-shell">
-                                            <span className="activity-bar" style={{ height: `${barHeight}%` }} />
-                                        </div>
-                                        <span className="activity-label">{item.day}</span>
-                                    </div>
-                                );
-                            })
+                                        return (
+                                            <div
+                                                key={item.day}
+                                                className="activity-column"
+                                                tabIndex={0}
+                                                role="img"
+                                                aria-label={`${item.day}: ${formatCurrency(item.value)}`}
+                                            >
+                                                <div className="activity-tooltip">
+                                                    <strong>{formatCurrency(item.value)}</strong>
+                                                    <span>{item.day}</span>
+                                                </div>
+                                                <div className="activity-bar-track">
+                                                    <span
+                                                        className={`activity-bar ${isPeak ? 'is-peak' : ''}`}
+                                                        style={{ height: `${barHeight}%` }}
+                                                    />
+                                                </div>
+                                                <span className="activity-label">{item.day}</span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </>
                         ) : (
                             <div className="card-placeholder">No activity data found for this range.</div>
                         )}

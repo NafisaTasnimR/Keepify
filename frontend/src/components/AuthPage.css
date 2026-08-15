@@ -107,6 +107,11 @@
     background-color: var(--border-light, #eaf6ef);
 }
 
+.auth-google-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
 .auth-google-icon {
     flex-shrink: 0;
 }
