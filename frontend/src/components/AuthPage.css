@@ -1,70 +1,156 @@
-/* AuthPage.css – styles for the authentication page */
+/* AuthPage.css – authentication modal overlay */
 
-.auth-container {
+.auth-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
     display: flex;
     justify-content: center;
     align-items: center;
-    min-height: 100vh;
-    background-color: var(--bg);
     padding: 20px;
+    background-color: rgba(31, 59, 48, 0.55);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    animation: authOverlayFadeIn 0.2s ease;
+}
+
+@keyframes authOverlayFadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
 }
 
 .auth-card {
-    background-color: var(--bg-card);
-    border-radius: 12px;
-    box-shadow: var(--shadow-md);
+    position: relative;
+    background-color: var(--bg-card, #ffffff);
+    border-radius: 14px;
+    box-shadow: 0 30px 60px -18px rgba(31, 59, 48, 0.4), 0 8px 24px rgba(31, 59, 48, 0.12);
     padding: 40px 32px;
     width: 100%;
     max-width: 400px;
     text-align: center;
+    animation: authCardIn 0.22s ease;
+}
+
+@keyframes authCardIn {
+    from {
+        opacity: 0;
+        transform: translateY(12px) scale(0.98);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.auth-close-btn {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    border-radius: 8px;
+    color: var(--text-muted, #5b7568);
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.auth-close-btn:hover {
+    background-color: var(--accent-soft, #dff7ec);
+    color: var(--text-primary, #1f3b30);
 }
 
 .auth-title {
+    font-family: var(--font-display, 'Sora', sans-serif);
     font-size: 24px;
-    font-weight: 600;
-    color: var(--text-primary);
+    font-weight: 700;
+    color: var(--text-primary, #1f3b30);
     margin-bottom: 28px;
     letter-spacing: -0.3px;
 }
 
 .auth-google-btn {
     width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
     padding: 12px 0;
-    background-color: var(--bg-card);
-    color: var(--text-primary);
-    border: 1px solid var(--border);
+    background-color: var(--bg-card, #ffffff);
+    color: var(--text-primary, #1f3b30);
+    border: 1px solid var(--border, #d9ede3);
     border-radius: 8px;
-    font-size: 16px;
-    font-weight: 500;
+    font-family: var(--font-body, 'IBM Plex Sans', sans-serif);
+    font-size: 15.5px;
+    font-weight: 600;
     cursor: pointer;
-    transition: background-color 0.2s, border-color 0.2s;
-    margin-bottom: 24px;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+    margin-bottom: 20px;
 }
 
 .auth-google-btn:hover {
-    background-color: var(--bg-card);
-    border-color: var(--accent2);
+    background-color: var(--accent-soft, #dff7ec);
+    border-color: var(--accent, #467a63);
 }
 
 .auth-google-btn:active {
-    background-color: var(--bg);
+    background-color: var(--border-light, #eaf6ef);
+}
+
+.auth-google-icon {
+    flex-shrink: 0;
+}
+
+.auth-error {
+    font-size: 13.5px;
+    color: #b5453a;
+    background-color: #fbeceb;
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 20px;
+    line-height: 1.4;
 }
 
 .auth-toggle {
     font-size: 14px;
-    color: var(--text-secondary);
+    color: var(--text-muted, #5b7568);
     margin: 0;
 }
 
 .auth-toggle-link {
-    color: var(--accent);
-    font-weight: 500;
+    color: var(--accent, #467a63);
+    font-weight: 600;
     cursor: pointer;
     text-decoration: none;
-    transition: color 0.2s;
+    transition: color 0.2s ease;
 }
 
 .auth-toggle-link:hover {
-    color: var(--text-primary);
+    color: var(--accent-hover, #375f4d);
     text-decoration: underline;
+}
+
+.auth-close-btn:focus-visible,
+.auth-google-btn:focus-visible,
+.auth-toggle-link:focus-visible {
+    outline: 2px solid var(--accent, #467a63);
+    outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+    .auth-overlay,
+    .auth-card {
+        animation: none;
+    }
 }
