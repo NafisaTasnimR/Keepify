@@ -49,6 +49,38 @@ const clearAnalyticsCache = async (userId = null) => {
     }
 };
 
+// Every bucket in [startDate, endDate] at the given interval, so a sparse
+// result set (days/weeks/months with no orders) still produces a contiguous
+// series instead of skipping straight to the next date that has data.
+const buildBucketKeys = (startDate, endDate, interval) => {
+    const keys = [];
+    const cursor = new Date(startDate);
+    cursor.setUTCHours(0, 0, 0, 0);
+    const end = new Date(endDate);
+    end.setUTCHours(0, 0, 0, 0);
+
+    if (interval === 'week') {
+        const day = cursor.getUTCDay();
+        const diffToMonday = day === 0 ? 6 : day - 1;
+        cursor.setUTCDate(cursor.getUTCDate() - diffToMonday);
+    } else if (interval === 'month') {
+        cursor.setUTCDate(1);
+    }
+
+    while (cursor <= end) {
+        keys.push(cursor.toISOString().slice(0, 10));
+        if (interval === 'week') {
+            cursor.setUTCDate(cursor.getUTCDate() + 7);
+        } else if (interval === 'month') {
+            cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+        } else {
+            cursor.setUTCDate(cursor.getUTCDate() + 1);
+        }
+    }
+
+    return keys;
+};
+
 const fetchTrends = async (userId, { startDate, endDate, interval }) => {
     const safeUserId = userId || '';
     const bucketExpression =
@@ -60,21 +92,35 @@ const fetchTrends = async (userId, { startDate, endDate, interval }) => {
 
     const result = await pool.query(
         `SELECT
-            ${bucketExpression} AS bucket,
+            TO_CHAR(${bucketExpression}, 'YYYY-MM-DD') AS bucket_key,
             COALESCE(SUM(amount), 0) AS revenue,
             COUNT(*)::int AS orders
          FROM order_analytics
          WHERE (user_id = $1 OR user_id IS NULL) AND order_date >= $2::date AND order_date <= $3::date
-         GROUP BY bucket
-         ORDER BY bucket ASC`,
+         GROUP BY bucket_key
+         ORDER BY bucket_key ASC`,
         [safeUserId, startDate.toISOString().slice(0, 10), endDate.toISOString().slice(0, 10)]
     );
 
-    return result.rows.map((item) => ({
-        date: new Date(item.bucket).toISOString(),
-        revenue: Number(item.revenue || 0),
-        orders: Number(item.orders || 0),
-    }));
+    // bucket_key comes back as a plain 'YYYY-MM-DD' string (via TO_CHAR) so it
+    // can be matched against buildBucketKeys() directly — going through a JS
+    // Date here would have pg's driver reinterpret the timestamp-without-tz
+    // value as local server time, shifting it onto the wrong calendar day.
+    const byDateKey = new Map(
+        result.rows.map((item) => [
+            item.bucket_key,
+            { revenue: Number(item.revenue || 0), orders: Number(item.orders || 0) },
+        ])
+    );
+
+    return buildBucketKeys(startDate, endDate, interval).map((dateKey) => {
+        const bucket = byDateKey.get(dateKey);
+        return {
+            date: `${dateKey}T00:00:00.000Z`,
+            revenue: bucket?.revenue ?? 0,
+            orders: bucket?.orders ?? 0,
+        };
+    });
 };
 
 const fetchPeaks = async (userId, { startDate, endDate, interval, limit }) => {

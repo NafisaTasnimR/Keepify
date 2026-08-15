@@ -51,7 +51,7 @@ const OutreachPage = () => {
 
     return (
         <div className="outreach-page">
-            {toast && <div className={`toast toast-${toast.type}`}>{toast.message}</div>}
+            {toast && <div className={`outreach-toast outreach-toast-${toast.type}`}>{toast.message}</div>}
 
             <div className="page-header">
                 <div>

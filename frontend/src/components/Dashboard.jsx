@@ -11,6 +11,8 @@ import Settings from './Settings';
 import AuthPage from './AuthPage';
 import './Dashboard.css';
 import { apiFetch } from '../api/client';
+import { auth } from '../firebaseConfig';
+import { signOut } from 'firebase/auth';
 
 const EMPTY_SALES_DATA = [
     { day: 'Mon', value: 0 },
@@ -47,6 +49,7 @@ const Dashboard = () => {
     const navigate = useNavigate();
     const [activeMenu, setActiveMenu] = useState('Dashboard');
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
     const [userInfo, setUserInfo] = useState({ name: 'User', email: '' });
     const [kpis, setKpis] = useState({
         totalRevenue: 0,
@@ -61,7 +64,7 @@ const Dashboard = () => {
     useEffect(() => {
         const token = localStorage.getItem('token');
         if (!token) {
-            navigate('/auth');
+            navigate('/');
             return;
         }
 
@@ -182,6 +185,7 @@ const Dashboard = () => {
     ];
 
     const maxValue = Math.max(...salesData.map(d => d.value), 1);
+    const hasSalesThisWeek = salesData.some(d => d.value > 0);
     const BAR_AREA = Math.max(chartHeight - 24, 40);
 
     const navSections = [
@@ -220,6 +224,17 @@ const Dashboard = () => {
         setIsSidebarOpen(false);
     };
 
+    const handleSignOut = async () => {
+        try {
+            await signOut(auth);
+        } catch (error) {
+            // ignore — clearing local session below is what actually matters
+        }
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        navigate('/');
+    };
+
     return (
         <div className="dashboard-container">
             <Sidebar
@@ -255,7 +270,40 @@ const Dashboard = () => {
                     </div>
                     <div className="header-right">
                         <span className="company-name">{userInfo.name}</span>
-                        <div className="profile-avatar">{getInitials(userInfo.name)}</div>
+                        <div className="profile-menu-wrapper">
+                            <button
+                                type="button"
+                                className="profile-avatar"
+                                onClick={() => setIsProfileMenuOpen((open) => !open)}
+                                aria-label="Open profile menu"
+                                aria-expanded={isProfileMenuOpen}
+                            >
+                                {getInitials(userInfo.name)}
+                            </button>
+                            {isProfileMenuOpen && (
+                                <>
+                                    <button
+                                        type="button"
+                                        className="profile-menu-backdrop"
+                                        onClick={() => setIsProfileMenuOpen(false)}
+                                        aria-label="Close profile menu"
+                                    />
+                                    <div className="profile-menu">
+                                        <div className="profile-menu-info">
+                                            <span className="profile-menu-name">{userInfo.name}</span>
+                                            <span className="profile-menu-email">{userInfo.email}</span>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            className="profile-menu-signout"
+                                            onClick={handleSignOut}
+                                        >
+                                            Sign out
+                                        </button>
+                                    </div>
+                                </>
+                            )}
+                        </div>
                     </div>
                 </header>
 
@@ -297,18 +345,43 @@ const Dashboard = () => {
                                 <div className="card sales-card">
                                     <h3>Sales this week</h3>
                                     <div className="chart-wrapper" ref={chartRef}>
-                                        <div className="bars">
-                                            {salesData.map((item, i) => (
-                                                <div key={i} className="bar-container">
-                                                    <div
-                                                        className="bar"
-                                                        style={{ height: `${Math.round((item.value / maxValue) * BAR_AREA)}px` }}
-                                                        title={`${item.day}: ${item.value}`}
-                                                    />
-                                                    <span className="bar-label">{item.day}</span>
+                                        {hasSalesThisWeek ? (
+                                            <>
+                                                <div className="sales-gridlines" aria-hidden="true">
+                                                    <span />
+                                                    <span />
+                                                    <span />
                                                 </div>
-                                            ))}
-                                        </div>
+                                                <div className="bars">
+                                                    {salesData.map((item, i) => {
+                                                        const isPeak = item.value === maxValue && item.value > 0;
+                                                        return (
+                                                            <div
+                                                                key={i}
+                                                                className="bar-container"
+                                                                tabIndex={0}
+                                                                role="img"
+                                                                aria-label={`${item.day}: ${formatCurrency(item.value)}`}
+                                                            >
+                                                                <div className="bar-tooltip">
+                                                                    <strong>{formatCurrency(item.value)}</strong>
+                                                                    <span>{item.day}</span>
+                                                                </div>
+                                                                <div
+                                                                    className={`bar ${isPeak ? 'is-peak' : ''}`}
+                                                                    style={{ height: `${Math.round((item.value / maxValue) * BAR_AREA)}px` }}
+                                                                />
+                                                                <span className="bar-label">{item.day}</span>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <div className="sales-empty-state">
+                                                <p>No sales recorded in the last 7 days.</p>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
 
