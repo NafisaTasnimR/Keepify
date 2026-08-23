@@ -110,7 +110,7 @@ const CustomerChurnModal = ({ customer, onClose, onScoreCustomer, scoring }) => 
     if (!customer) return null;
 
     const fmt = (d) => d
-        ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+        ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
         : '—';
 
     const stats = [

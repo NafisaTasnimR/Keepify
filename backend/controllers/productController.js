@@ -40,10 +40,6 @@ const validateProductPayload = (payload, isUpdate = false) => {
         errors.push('name must be a string');
     }
 
-    if (payload.sku !== undefined && typeof payload.sku !== 'string') {
-        errors.push('sku must be a string');
-    }
-
     if (payload.price !== undefined) {
         const price = parseNumber(payload.price);
         if (price === null || price < 0) {
@@ -80,8 +76,14 @@ const listProductsHandler = async (req, res, next) => {
         const limit = Math.min(Math.max(Number(req.query.limit) || 20, 1), 100);
         const offset = (page - 1) * limit;
 
+        const allowedStatus = new Set(['active', 'inactive', 'archived']);
+        const status = typeof req.query.status === 'string'
+            ? req.query.status.split(',').map((s) => s.trim()).filter((s) => allowedStatus.has(s))
+            : undefined;
+
         const { items, total } = await listProducts(req.user.uid, {
             search: req.query.search,
+            status,
             limit,
             offset,
             sortBy: req.query.sortBy,
@@ -126,7 +128,6 @@ const createProductHandler = async (req, res, next) => {
     try {
         const payload = {
             name: req.body.name,
-            sku: req.body.sku,
             price: parseNumber(req.body.price) ?? 0,
             stock: parseNumber(req.body.stock) ?? 0,
             category: req.body.category,
@@ -157,7 +158,6 @@ const updateProductHandler = async (req, res, next) => {
 
         const payload = {
             name: req.body.name,
-            sku: req.body.sku,
             price: parseNumber(req.body.price),
             stock: parseNumber(req.body.stock),
             category: req.body.category,

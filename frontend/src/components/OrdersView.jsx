@@ -40,7 +40,6 @@ const normalizeOrder = (order) => ({
     customerLabel: formatEntityLabel(order.customerId, order.customerName, 'Unknown customer'),
     productId: order.productId ?? null,
     productName: order.productName || null,
-    productSku: order.productSku || null,
     productCategory: order.productCategory || null,
     productLabel: formatEntityLabel(order.productId, order.productName, 'Unknown product'),
     quantity: Number(order.quantity ?? 1),

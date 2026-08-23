@@ -4,7 +4,6 @@ const PRODUCT_SELECT_COLUMNS = [
     'p.id',
     'p.user_id',
     'p.name',
-    'p.sku',
     'p.price',
     'p.stock',
     'p.category',
@@ -12,9 +11,9 @@ const PRODUCT_SELECT_COLUMNS = [
     'p.created_at',
     'p.updated_at',
     'pi.image_url',
-    'COALESCE(SUM(o.quantity), 0)::int AS units_sold',
-    'COALESCE(SUM(CASE WHEN o.order_date >= CURRENT_DATE - INTERVAL \'30 days\' THEN o.quantity ELSE 0 END), 0)::int AS recent_units',
-    'COALESCE(SUM(CASE WHEN o.order_date >= CURRENT_DATE - INTERVAL \'60 days\' AND o.order_date < CURRENT_DATE - INTERVAL \'30 days\' THEN o.quantity ELSE 0 END), 0)::int AS previous_units',
+    "COALESCE(SUM(CASE WHEN o.status = 'completed' THEN o.quantity ELSE 0 END), 0)::int AS units_sold",
+    "COALESCE(SUM(CASE WHEN o.status = 'completed' AND o.order_date >= CURRENT_DATE - INTERVAL '30 days' THEN o.quantity ELSE 0 END), 0)::int AS recent_units",
+    "COALESCE(SUM(CASE WHEN o.status = 'completed' AND o.order_date >= CURRENT_DATE - INTERVAL '60 days' AND o.order_date < CURRENT_DATE - INTERVAL '30 days' THEN o.quantity ELSE 0 END), 0)::int AS previous_units",
 ];
 
 const PRODUCT_SELECT_SQL = `
@@ -60,7 +59,6 @@ const mapProduct = (row) => {
         id: row.id,
         userId: row.user_id || null,
         name: row.name,
-        sku: row.sku || null,
         price: row.price !== null ? Number(row.price) : null,
         stock: row.stock !== null ? Number(row.stock) : null,
         category: row.category || null,
@@ -81,7 +79,6 @@ const ensureProductsTable = async () => {
                 id SERIAL PRIMARY KEY,
                 user_id TEXT,
                 name TEXT NOT NULL,
-                sku TEXT,
                 price NUMERIC(10, 2) NOT NULL DEFAULT 0,
                 stock INTEGER NOT NULL DEFAULT 0,
                 category TEXT,
@@ -110,16 +107,19 @@ const ensureProductImagesTable = async () => {
     }
 };
 
-const listProducts = async (userId, { search, limit, offset, sortBy, sortDir }) => {
+const listProducts = async (userId, { search, status, limit, offset, sortBy, sortDir }) => {
     const safeUserId = userId || '';
     const whereValues = [safeUserId];
     const whereClauses = ['(p.user_id = $1 OR p.user_id IS NULL)'];
 
     if (search) {
         whereValues.push(`%${search}%`);
-        whereClauses.push(
-            `(p.name ILIKE $${whereValues.length} OR p.sku ILIKE $${whereValues.length})`
-        );
+        whereClauses.push(`p.name ILIKE $${whereValues.length}`);
+    }
+
+    if (status && status.length) {
+        whereValues.push(status);
+        whereClauses.push(`p.status = ANY($${whereValues.length})`);
     }
 
     const whereSql = `WHERE ${whereClauses.join(' AND ')}`;
@@ -165,7 +165,7 @@ const getProductById = async (userId, id) => {
 };
 
 const createProduct = async (userId, payload) => {
-    const { name, sku, price, stock, category, status, imageUrl } = payload;
+    const { name, price, stock, category, status, imageUrl } = payload;
     const safeUserId = userId || '';
     const client = await pool.connect();
 
@@ -173,10 +173,10 @@ const createProduct = async (userId, payload) => {
         await client.query('BEGIN');
 
         const result = await client.query(
-            `INSERT INTO products (user_id, name, sku, price, stock, category, status)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
+            `INSERT INTO products (user_id, name, price, stock, category, status)
+     VALUES ($1, $2, $3, $4, $5, $6)
      RETURNING id`,
-            [safeUserId, name, sku || null, price, stock, category || null, status || 'active']
+            [safeUserId, name, price, stock, category || null, status || 'active']
         );
 
         const productId = result.rows[0].id;
@@ -216,9 +216,6 @@ const updateProduct = async (userId, id, payload) => {
 
     if (payload.name !== undefined) {
         pushField('name', payload.name);
-    }
-    if (payload.sku !== undefined) {
-        pushField('sku', payload.sku);
     }
     if (payload.price !== undefined) {
         pushField('price', payload.price);

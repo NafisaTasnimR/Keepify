@@ -226,7 +226,7 @@ const CustomerPage = () => {
                                     <td className="td-muted">
                                         {customer.lastActive
                                             ? new Date(customer.lastActive).toLocaleDateString('en-GB', {
-                                                day: 'numeric', month: 'short', year: 'numeric'
+                                                day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC'
                                             })
                                             : '—'}
                                     </td>

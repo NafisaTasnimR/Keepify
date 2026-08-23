@@ -84,7 +84,7 @@ const CsvUploadModal = ({ isOpen, onClose, onUploaded }) => {
             <div className="csv-upload-container">
                 <h2 className="csv-upload-title">Upload orders CSV</h2>
                 <p className="csv-upload-text">
-                    Columns: customer_id, product_id, quantity, amount, order_date, status
+                    Supported columns: customer_name, customer_email, product_name (or product_id/customer_id), quantity, amount, order_date, status
                 </p>
 
                 <input
@@ -111,13 +111,21 @@ const CsvUploadModal = ({ isOpen, onClose, onUploaded }) => {
                             <strong>{result.failed}</strong>
                         </p>
                         {result.errors?.length ? (
-                            <ul className="csv-upload-error-list">
-                                {result.errors.slice(0, 5).map((e, i) => (
-                                    <li key={i}>
-                                        Row {e.row}: {e.message}
-                                    </li>
-                                ))}
-                            </ul>
+                            <div className="csv-upload-error-section">
+                                <p className="csv-upload-error-title">Import Errors:</p>
+                                <ul className="csv-upload-error-list">
+                                    {result.errors.map((e, i) => (
+                                        <li key={i}>
+                                            Row {e.row}: {e.message}
+                                        </li>
+                                    ))}
+                                </ul>
+                                {result.errors.length > 5 && (
+                                    <p className="csv-upload-error-more">
+                                        ...and {result.errors.length - 5} more errors.
+                                    </p>
+                                )}
+                            </div>
                         ) : null}
                     </div>
                 ) : null}
