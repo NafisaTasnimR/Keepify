@@ -29,6 +29,14 @@ const AddOrderPage = ({
         category: '',
     };
 
+    const [customerMode, setCustomerMode] = useState('existing'); // 'existing' | 'new'
+    const [newCustomer, setNewCustomer] = useState({
+        name: '',
+        email: '',
+        phone: '',
+    });
+    const [localValidationMessage, setLocalValidationMessage] = useState('');
+
     const [formData, setFormData] = useState(
         order
             ? {
@@ -56,15 +64,36 @@ const AddOrderPage = ({
             try {
                 const [customersRes, productsRes] = await Promise.all([
                     apiFetch('/api/customers?limit=200&sortBy=name&sortDir=asc'),
-                    apiFetch('/api/products?limit=200&sortBy=name&sortDir=asc'),
+                    apiFetch('/api/products?status=active&limit=200&sortBy=name&sortDir=asc'),
                 ]);
                 if (!customersRes.ok || !productsRes.ok) {
                     throw new Error('Failed to load customers/products');
                 }
                 const customersData = await customersRes.json();
                 const productsData = await productsRes.json();
+
+                let activeProducts = Array.isArray(productsData.items) ? productsData.items : [];
+
+                // If editing an existing order and its product is inactive/archived, fetch and append it
+                if (order?.productId && !activeProducts.some((p) => String(p.id) === String(order.productId))) {
+                    try {
+                        const existingProdRes = await apiFetch(`/api/products/${order.productId}`);
+                        if (existingProdRes.ok) {
+                            const existingProd = await existingProdRes.json();
+                            if (existingProd) {
+                                activeProducts = [
+                                    ...activeProducts,
+                                    { ...existingProd, name: `${existingProd.name} (${existingProd.status || 'inactive'})` },
+                                ];
+                            }
+                        }
+                    } catch {
+                        // ignore error loading archived product
+                    }
+                }
+
                 setCustomers(Array.isArray(customersData.items) ? customersData.items : []);
-                setProducts(Array.isArray(productsData.items) ? productsData.items : []);
+                setProducts(activeProducts);
             } catch {
                 setOptionsError('Could not load customers/products list.');
             } finally {
@@ -73,11 +102,19 @@ const AddOrderPage = ({
         };
 
         loadOptions();
-    }, []);
+    }, [order?.productId]);
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
         setFormData((prev) => ({
+            ...prev,
+            [name]: value,
+        }));
+    };
+
+    const handleNewCustomerChange = (e) => {
+        const { name, value } = e.target;
+        setNewCustomer((prev) => ({
             ...prev,
             [name]: value,
         }));
@@ -109,7 +146,36 @@ const AddOrderPage = ({
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        onSave(formData);
+        setLocalValidationMessage('');
+
+        if (customerMode === 'existing') {
+            if (!formData.customerId) {
+                setLocalValidationMessage('Please select an existing customer or switch to Add New Customer.');
+                return;
+            }
+            onSave({
+                ...formData,
+                newCustomer: null,
+            });
+        } else {
+            if (!newCustomer.name.trim()) {
+                setLocalValidationMessage('Customer name is required.');
+                return;
+            }
+            if (!newCustomer.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newCustomer.email.trim())) {
+                setLocalValidationMessage('A valid customer email is required.');
+                return;
+            }
+            onSave({
+                ...formData,
+                customerId: null,
+                newCustomer: {
+                    name: newCustomer.name.trim(),
+                    email: newCustomer.email.trim(),
+                    phone: newCustomer.phone.trim() || null,
+                },
+            });
+        }
     };
 
     const selectedCustomer = customers.find((c) => String(c.id) === String(formData.customerId));
@@ -121,47 +187,132 @@ const AddOrderPage = ({
 
                 <form onSubmit={handleSubmit} className="add-order-form">
                     {optionsError && <p className="form-error">{optionsError}</p>}
+                    {(localValidationMessage || error) && (
+                        <p className="form-error">{localValidationMessage || error}</p>
+                    )}
 
-                    <div className="form-row">
-                        <div className="form-section">
-                            <label htmlFor="customerId" className="form-label">
-                                Customer *
-                            </label>
-                            <select
-                                id="customerId"
-                                name="customerId"
-                                value={formData.customerId}
-                                onChange={handleInputChange}
-                                required
-                                className="form-select"
-                                disabled={optionsLoading}
+                    {/* Customer Selection Mode Toggle */}
+                    <div className="form-section">
+                        <label className="form-label">Customer Source *</label>
+                        <div className="customer-mode-toggle">
+                            <button
+                                type="button"
+                                className={`customer-toggle-btn ${customerMode === 'existing' ? 'active' : ''}`}
+                                onClick={() => {
+                                    setCustomerMode('existing');
+                                    setLocalValidationMessage('');
+                                }}
                             >
-                                <option value="">
-                                    {optionsLoading ? 'Loading customers…' : 'Select a customer'}
-                                </option>
-                                {customers.map((customer) => (
-                                    <option key={customer.id} value={customer.id}>
-                                        {customer.name} ({customer.email})
-                                    </option>
-                                ))}
-                            </select>
+                                Select Existing
+                            </button>
+                            <button
+                                type="button"
+                                className={`customer-toggle-btn ${customerMode === 'new' ? 'active' : ''}`}
+                                onClick={() => {
+                                    setCustomerMode('new');
+                                    setLocalValidationMessage('');
+                                }}
+                            >
+                                + Add New Customer
+                            </button>
                         </div>
                     </div>
 
-                    <div className="form-section">
-                        <label htmlFor="customerEmail" className="form-label">
-                            Customer Email
-                        </label>
-                        <input
-                            type="email"
-                            id="customerEmail"
-                            className="form-input"
-                            value={selectedCustomer?.email || ''}
-                            placeholder="Select a customer to see their email"
-                            readOnly
-                            disabled
-                        />
-                    </div>
+                    {customerMode === 'existing' ? (
+                        <>
+                            <div className="form-row">
+                                <div className="form-section">
+                                    <label htmlFor="customerId" className="form-label">
+                                        Select Customer *
+                                    </label>
+                                    <select
+                                        id="customerId"
+                                        name="customerId"
+                                        value={formData.customerId}
+                                        onChange={handleInputChange}
+                                        required={customerMode === 'existing'}
+                                        className="form-select"
+                                        disabled={optionsLoading}
+                                    >
+                                        <option value="">
+                                            {optionsLoading ? 'Loading customers…' : 'Select a customer'}
+                                        </option>
+                                        {customers.map((customer) => (
+                                            <option key={customer.id} value={customer.id}>
+                                                {customer.name} ({customer.email})
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div className="form-section">
+                                <label htmlFor="customerEmail" className="form-label">
+                                    Customer Email
+                                </label>
+                                <input
+                                    type="email"
+                                    id="customerEmail"
+                                    className="form-input"
+                                    value={selectedCustomer?.email || ''}
+                                    placeholder="Select a customer to see their email"
+                                    readOnly
+                                    disabled
+                                />
+                            </div>
+                        </>
+                    ) : (
+                        <div className="new-customer-fields">
+                            <div className="form-section">
+                                <label htmlFor="newCustomerName" className="form-label">
+                                    Customer Name *
+                                </label>
+                                <input
+                                    type="text"
+                                    id="newCustomerName"
+                                    name="name"
+                                    value={newCustomer.name}
+                                    onChange={handleNewCustomerChange}
+                                    placeholder="e.g. John Doe"
+                                    required={customerMode === 'new'}
+                                    className="form-input"
+                                />
+                            </div>
+
+                            <div className="form-row" style={{ marginTop: '12px' }}>
+                                <div className="form-section">
+                                    <label htmlFor="newCustomerEmail" className="form-label">
+                                        Customer Email *
+                                    </label>
+                                    <input
+                                        type="email"
+                                        id="newCustomerEmail"
+                                        name="email"
+                                        value={newCustomer.email}
+                                        onChange={handleNewCustomerChange}
+                                        placeholder="john@example.com"
+                                        required={customerMode === 'new'}
+                                        className="form-input"
+                                    />
+                                </div>
+
+                                <div className="form-section">
+                                    <label htmlFor="newCustomerPhone" className="form-label">
+                                        Phone Number
+                                    </label>
+                                    <input
+                                        type="tel"
+                                        id="newCustomerPhone"
+                                        name="phone"
+                                        value={newCustomer.phone}
+                                        onChange={handleNewCustomerChange}
+                                        placeholder="01700-000000"
+                                        className="form-input"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                     <div className="form-row">
                         <div className="form-section">
@@ -180,11 +331,15 @@ const AddOrderPage = ({
                                 <option value="">
                                     {optionsLoading ? 'Loading products…' : 'Select a product'}
                                 </option>
-                                {products.map((product) => (
-                                    <option key={product.id} value={product.id}>
-                                        {product.name}{product.sku ? ` (${product.sku})` : ''}
-                                    </option>
-                                ))}
+                                {products.map((product) => {
+                                    const stockNum = Number(product.stock ?? 0);
+                                    const isOutOfStock = stockNum <= 0;
+                                    return (
+                                        <option key={product.id} value={product.id} disabled={isOutOfStock}>
+                                            {product.name}{product.sku ? ` (${product.sku})` : ''} - {isOutOfStock ? 'Out of Stock (0)' : `${stockNum} in stock`}
+                                        </option>
+                                    );
+                                })}
                             </select>
                         </div>
                     </div>
@@ -258,8 +413,6 @@ const AddOrderPage = ({
                             <option value="cancelled">Cancelled</option>
                         </select>
                     </div>
-
-                    {error && <p className="form-error">{error}</p>}
 
                     <div className="form-buttons">
                         <button type="button" onClick={onCancel} className="btn btn-cancel">

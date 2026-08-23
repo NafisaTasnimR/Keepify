@@ -32,13 +32,22 @@ const isValidDate = (value) => !Number.isNaN(new Date(value).getTime());
 const validateOrderPayload = (payload, isUpdate = false) => {
     const errors = [];
 
-    if (!isUpdate && (payload.customerId === undefined || payload.customerId === null)) {
-        errors.push('customerId is required');
+    if (!isUpdate && (payload.customerId === undefined || payload.customerId === null) && !payload.newCustomer) {
+        errors.push('customerId or newCustomer is required');
     }
 
-    if (payload.customerId !== undefined) {
+    if (payload.customerId !== undefined && payload.customerId !== null) {
         if (!Number.isInteger(payload.customerId) || payload.customerId <= 0) {
             errors.push('customerId must be a positive integer');
+        }
+    }
+
+    if (payload.newCustomer) {
+        if (!payload.newCustomer.name || typeof payload.newCustomer.name !== 'string' || !payload.newCustomer.name.trim()) {
+            errors.push('Customer name is required');
+        }
+        if (!payload.newCustomer.email || typeof payload.newCustomer.email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.newCustomer.email.trim())) {
+            errors.push('A valid customer email is required');
         }
     }
 
@@ -141,6 +150,11 @@ const createOrderHandler = async (req, res, next) => {
     try {
         const payload = {
             customerId: parseInteger(req.body.customerId),
+            newCustomer: req.body.newCustomer && typeof req.body.newCustomer === 'object' ? {
+                name: req.body.newCustomer.name ? String(req.body.newCustomer.name).trim() : '',
+                email: req.body.newCustomer.email ? String(req.body.newCustomer.email).trim() : '',
+                phone: req.body.newCustomer.phone ? String(req.body.newCustomer.phone).trim() : null,
+            } : null,
             productId: parseInteger(req.body.productId),
             quantity: parseInteger(req.body.quantity),
             amount: parseNumber(req.body.amount),
@@ -173,6 +187,11 @@ const updateOrderHandler = async (req, res, next) => {
 
         const payload = {
             customerId: parseInteger(req.body.customerId),
+            newCustomer: req.body.newCustomer && typeof req.body.newCustomer === 'object' ? {
+                name: req.body.newCustomer.name ? String(req.body.newCustomer.name).trim() : '',
+                email: req.body.newCustomer.email ? String(req.body.newCustomer.email).trim() : '',
+                phone: req.body.newCustomer.phone ? String(req.body.newCustomer.phone).trim() : null,
+            } : undefined,
             productId: parseInteger(req.body.productId),
             quantity: parseInteger(req.body.quantity),
             amount: parseNumber(req.body.amount),

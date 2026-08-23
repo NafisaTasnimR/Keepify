@@ -116,6 +116,7 @@ const OrdersView = () => {
     const handleSaveOrder = async (formData) => {
         const payload = {
             customerId: Number(formData.customerId) || null,
+            newCustomer: formData.newCustomer || null,
             productId: Number(formData.productId) || null,
             quantity: Number(formData.quantity) || null,
             amount: Number(formData.amount) || 0,

@@ -48,6 +48,45 @@
     letter-spacing: 0.3px;
 }
 
+.customer-mode-toggle {
+    display: flex;
+    background-color: var(--border);
+    border-radius: 8px;
+    padding: 3px;
+    gap: 4px;
+}
+
+.customer-toggle-btn {
+    flex: 1;
+    padding: 8px 12px;
+    border: none;
+    background: transparent;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.customer-toggle-btn:hover {
+    color: var(--text-primary);
+}
+
+.customer-toggle-btn.active {
+    background-color: #ffffff;
+    color: var(--text-primary);
+    font-weight: 600;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}
+
+.new-customer-fields {
+    background-color: rgba(240, 242, 250, 0.5);
+    padding: 14px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+}
+
 .form-input,
 .form-select {
     padding: 10px 14px;
