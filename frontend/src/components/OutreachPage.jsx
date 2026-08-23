@@ -55,7 +55,6 @@ const OutreachPage = () => {
 
             <div className="page-header">
                 <div>
-                    <h1 className="page-title">Outreach</h1>
                     <p className="page-subtitle">
                         {customers.length} high/medium risk customer{customers.length === 1 ? '' : 's'} to reach out to
                     </p>

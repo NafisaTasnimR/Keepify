@@ -133,7 +133,6 @@ const CustomerPage = () => {
 
             <div className="page-header">
                 <div>
-                    <h1 className="page-title">Customers</h1>
                     <p className="page-subtitle">{pagination.total} total customers</p>
                 </div>
                 <div className="header-actions">

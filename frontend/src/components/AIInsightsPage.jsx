@@ -208,12 +208,10 @@ const AIInsightsPage = () => {
 
     return (
         <div className="ai-page">
-            {/* ─── ONE HEADING ONLY ─── */}
             <div className="ai-page-header">
                 <div className="ai-page-title-group">
                     <span className="ai-page-mascot"><MiniMascot /></span>
                     <div>
-                        <h1 className="ai-page-title">AI Insights</h1>
                         <p className="ai-page-subtitle">
                             {data?.fromCache ? 'Cached' : 'Generated'} · {fmt(data?.generatedAt)}
                         </p>
