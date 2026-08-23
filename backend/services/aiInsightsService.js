@@ -2,7 +2,8 @@ const AnalyticsSnapshot = require('../models/AnalyticsSnapshot');
 const { pool } = require('../config/postgres');
 const { getKpis, getTrends, getCategoryBreakdown } = require('./analyticsService');
 
-const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
+//const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
+
 const CACHE_TTL_SECONDS = 60 * 60; // 1 hour
 
 // ─── Fetch raw data for specific user ─────────────────────────
@@ -39,8 +40,11 @@ const fetchAnalyticsData = async (userId) => {
     return { kpis, trends, categories, customerStats };
 };
 
-// ─── Call Groq for one section ────────────────────────────────
-const generateSection = async (sectionName, dataContext, instruction) => {
+// ─── Call Gemini for one section ────────────────────────────────
+const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent';
+
+// ─── Call Gemini for one section ────────────────────────────────
+const generateSection = async (sectionName, dataContext, instruction, retries = 3) => {
     const prompt = `You are a business analyst for a small e-commerce business called Keepify.
 
 ${dataContext}
@@ -56,36 +60,60 @@ Respond ONLY with a JSON array of exactly 3 insight objects, no markdown:
 severity must be: "positive" for good news, "warning" for problems/risks, "neutral" for general observations.
 Always use specific numbers from the data. Never be vague.`;
 
-    const response = await fetch(GROQ_URL, {
-        method: 'POST',
-        headers: {
-            'Content-Type':  'application/json',
-            'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
-        },
-        body: JSON.stringify({
-            model:       'llama-3.1-8b-instant',
-            messages:    [{ role: 'user', content: prompt }],
-            temperature: 0.3,
-            max_tokens:  500,
-        }),
-    });
+    for (let attempt = 0; attempt <= retries; attempt++) {
+        try {
+            const response = await fetch(`${GEMINI_URL}?key=${process.env.GEMINI_API_KEY}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: prompt }] }],
+                    generationConfig: {
+                        temperature:      0.3,
+                        maxOutputTokens:  800,
+                        responseMimeType: 'application/json',
+                    },
+                }),
+            });
 
-    if (!response.ok) {
-        const err = await response.json();
-        throw new Error(`Groq error for ${sectionName}: ${err?.error?.message}`);
+            if (!response.ok) {
+                const err = await response.json();
+                const msg = err?.error?.message || 'Unknown Gemini error';
+
+                // retry on overload/rate-limit, fail fast on everything else
+                const isRetryable = response.status === 503 || response.status === 429;
+                if (isRetryable && attempt < retries) {
+                    const delay = 500 * Math.pow(2, attempt); // 500ms, 1s, 2s
+                    console.warn(`Gemini overloaded for ${sectionName}, retrying in ${delay}ms (attempt ${attempt + 1}/${retries})`);
+                    await new Promise(res => setTimeout(res, delay));
+                    continue;
+                }
+                throw new Error(`Gemini error for ${sectionName}: ${msg}`);
+            }
+
+            const data = await response.json();
+            const raw  = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+
+            if (!raw) {
+                console.error(`Empty Gemini response for ${sectionName}:`, JSON.stringify(data));
+                return [];
+            }
+
+            const clean = raw.replace(/```json|```/g, '').trim();
+
+            try {
+                return JSON.parse(clean);
+            } catch {
+                console.error(`Failed to parse ${sectionName} response:`, raw);
+                return [];
+            }
+        } catch (err) {
+            if (attempt === retries) throw err;
+        }
     }
 
-    const data  = await response.json();
-    const raw   = data.choices?.[0]?.message?.content?.trim();
-    const clean = raw.replace(/```json|```/g, '').trim();
-
-    try {
-        return JSON.parse(clean);
-    } catch {
-        console.error(`Failed to parse ${sectionName} response:`, raw);
-        return [];
-    }
+    return [];
 };
+
 
 // ─── Build all 4 sections for user ─────────────────────────────
 const buildAllInsights = async (userId) => {
@@ -109,7 +137,7 @@ const buildAllInsights = async (userId) => {
     });
     const bestDay = Object.entries(dayTotals).sort((a, b) => b[1] - a[1])[0]?.[0] || 'N/A';
 
-    console.log(`Calling Groq for 4 sections (user ${userId})...`);
+    console.log(`Calling Gemini for 4 sections (user ${userId})...`);
 
     const [salesInsights, productInsights, customerInsights, categoryInsights] = await Promise.all([
         generateSection('sales',

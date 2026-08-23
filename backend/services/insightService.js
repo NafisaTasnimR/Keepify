@@ -1,13 +1,13 @@
 const Insight = require('../models/Insight');
 const { pool } = require('../config/postgres');
 
-const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
+const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent';
 
 const generateInsightForCustomer = async (userId, customer) => {
     const { id, name, churnScore, churnRisk,
             totalOrders, totalSpending, lastActive } = customer;
 
-    console.log(`  Calling Groq for ${name}...`);
+    console.log(`  Calling Gemini for ${name}...`);
 
     const recencyDays = lastActive
         ? Math.floor((Date.now() - new Date(lastActive).getTime()) / (1000 * 60 * 60 * 24))
@@ -39,17 +39,18 @@ OUTPUT only this JSON, no markdown:
 
     let raw;
     try {
-        const response = await fetch(GROQ_URL, {
+        const response = await fetch(`${GEMINI_URL}?key=${process.env.GEMINI_API_KEY}`, {
             method: 'POST',
             headers: {
-                'Content-Type':  'application/json',
-                'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
+                'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                model:       'llama-3.1-8b-instant',
-                messages:    [{ role: 'user', content: prompt }],
-                temperature: 0.4,
-                max_tokens:  300,
+                contents: [{ parts: [{ text: prompt }] }],
+                generationConfig: {
+                    temperature:      0.4,
+                    maxOutputTokens:  500,
+                    responseMimeType: 'application/json',
+                },
             }),
         });
 
@@ -59,10 +60,10 @@ OUTPUT only this JSON, no markdown:
         }
 
         const data = await response.json();
-        raw = data.choices?.[0]?.message?.content?.trim();
-        console.log(`  Groq response for ${name}:`, raw?.substring(0, 80));
+        raw = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+        console.log(`  Gemini response for ${name}:`, raw?.substring(0, 80));
     } catch (err) {
-        console.error(`  Groq API call failed for ${name}:`, err.message);
+        console.error(`  Gemini API call failed for ${name}:`, err.message);
         return null;
     }
 
@@ -134,6 +135,11 @@ const rebuildInsights = async (userId) => {
         }
     }
 
+    if (rows.length && results.length === 0) {
+        console.error(`All insight generations failed for user ${userId} (${rows.length} customers attempted) — keeping existing insights, not wiping.`);
+        return 0;
+    }
+
     console.log(`Saving ${results.length} insights to MongoDB for user ${userId}`);
     await Insight.deleteMany({ userId });
     if (results.length) await Insight.insertMany(results);
@@ -152,6 +158,17 @@ const getInsightsByCustomer = async (userId, customerId) => {
     return Insight.find({ userId, customerId, dismissed: false }).lean();
 };
 
+const generateInsightForSingleCustomer = async (userId, customer) => {
+    const insight = await generateInsightForCustomer(userId, customer);
+
+    if (insight) {
+        await Insight.deleteMany({ userId, customerId: customer.id });
+        await Insight.create(insight);
+    }
+
+    return insight;
+};
+
 const dismissInsight = async (userId, id) => {
     return Insight.findOneAndUpdate({ _id: id, userId }, { dismissed: true }, { new: true });
 };
@@ -161,4 +178,5 @@ module.exports = {
     listInsights,
     getInsightsByCustomer,
     dismissInsight,
+    generateInsightForSingleCustomer,
 };

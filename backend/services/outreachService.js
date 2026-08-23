@@ -1,6 +1,6 @@
 const nodemailer = require('nodemailer');
 
-const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
+const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent';
 
 const generateOutreachMessage = async (customer) => {
     const { name, churnRisk, totalOrders, totalSpending, lastActive } = customer;
@@ -29,17 +29,18 @@ OUTPUT only this JSON, no markdown, no commentary:
 
     let raw;
     try {
-        const response = await fetch(GROQ_URL, {
+        const response = await fetch(`${GEMINI_URL}?key=${process.env.GEMINI_API_KEY}`, {
             method: 'POST',
             headers: {
-                'Content-Type':  'application/json',
-                'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
+                'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                model:       'llama-3.1-8b-instant',
-                messages:    [{ role: 'user', content: prompt }],
-                temperature: 0.6,
-                max_tokens:  500,
+                contents: [{ parts: [{ text: prompt }] }],
+                generationConfig: {
+                    temperature:      0.6,
+                    maxOutputTokens:  800,
+                    responseMimeType: 'application/json',
+                },
             }),
         });
 
@@ -49,9 +50,9 @@ OUTPUT only this JSON, no markdown, no commentary:
         }
 
         const data = await response.json();
-        raw = data.choices?.[0]?.message?.content?.trim();
+        raw = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
     } catch (err) {
-        console.error(`Groq outreach generation failed for ${name}:`, err.message);
+        console.error(`Gemini outreach generation failed for ${name}:`, err.message);
         return null;
     }
 
