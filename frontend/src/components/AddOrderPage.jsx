@@ -336,7 +336,7 @@ const AddOrderPage = ({
                                     const isOutOfStock = stockNum <= 0;
                                     return (
                                         <option key={product.id} value={product.id} disabled={isOutOfStock}>
-                                            {product.name}{product.sku ? ` (${product.sku})` : ''} - {isOutOfStock ? 'Out of Stock (0)' : `${stockNum} in stock`}
+                                            {product.name} - {isOutOfStock ? 'Out of Stock (0)' : `${stockNum} in stock`}
                                         </option>
                                     );
                                 })}

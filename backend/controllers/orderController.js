@@ -270,7 +270,11 @@ const uploadCsvHandler = async (req, res, next) => {
 
         const rows = records.map((record) => ({
             customerId: parseInteger(record.customer_id || record.customerId),
+            customerName: record.customer_name || record.customerName || null,
+            customerEmail: record.customer_email || record.customerEmail || null,
+            customerPhone: record.customer_phone || record.customerPhone || null,
             productId: parseInteger(record.product_id || record.productId),
+            productName: record.product_name || record.productName || null,
             quantity: (() => {
                 const parsedQuantity = parseInteger(record.quantity);
                 return parsedQuantity === undefined ? 1 : parsedQuantity;
@@ -278,26 +282,17 @@ const uploadCsvHandler = async (req, res, next) => {
             amount: parseNumber(record.amount),
             orderDate: record.order_date || record.orderDate || null,
             status: record.status || 'pending',
-            category: record.category || record.categories || null,
+            category: record.product_category || record.category || record.categories || null,
         }));
 
-        const rowErrors = [];
-        rows.forEach((row, index) => {
-            const errors = validateOrderPayload(row);
-            if (errors.length) {
-                rowErrors.push({ row: index + 1, message: errors.join(', ') });
-            }
-        });
-
-        const validRows = rows.filter((_, index) => !rowErrors.some((e) => e.row === index + 1));
-        const result = await bulkInsertOrders(req.user.uid, validRows);
+        const result = await bulkInsertOrders(req.user.uid, rows);
 
         await clearAnalyticsCache(req.user.uid);
 
         res.json({
             imported: result.imported,
-            failed: result.failed + rowErrors.length,
-            errors: [...rowErrors, ...result.errors],
+            failed: result.failed,
+            errors: result.errors,
         });
     } catch (error) {
         next(error);

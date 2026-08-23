@@ -421,7 +421,6 @@ const Dashboard = () => {
                                         <thead>
                                             <tr>
                                                 <th>Product</th>
-                                                <th>SKU</th>
                                                 <th>Price</th>
                                                 <th>Stock</th>
                                                 <th>Status</th>
@@ -431,7 +430,6 @@ const Dashboard = () => {
                                             {topProducts.map((product, i) => (
                                                 <tr key={i}>
                                                     <td>{product.name}</td>
-                                                    <td>{product.sku || 'N/A'}</td>
                                                     <td>{formatCurrency(product.price)}</td>
                                                     <td>{product.stock}</td>
                                                     <td>

@@ -8,7 +8,6 @@ const ORDER_COLUMNS = [
     'customer_name',
     'customer_email',
     'product_name',
-    'product_sku',
     'product_category',
     'quantity',
     'amount',
@@ -28,7 +27,6 @@ const ORDER_SELECT_SQL = `
         customer_name,
         customer_email,
         product_name,
-        product_sku,
         product_category,
         quantity,
         amount,
@@ -48,7 +46,6 @@ const ANALYTICS_TABLE_COLUMNS = [
     'customer_email',
     'product_id',
     'product_name',
-    'product_sku',
     'category',
     'quantity',
     'amount',
@@ -66,7 +63,6 @@ const mapOrder = (row) => ({
     customerName: row.customer_name ?? null,
     customerEmail: row.customer_email ?? null,
     productName: row.product_name ?? null,
-    productSku: row.product_sku ?? null,
     productCategory: row.product_category ?? null,
     quantity: row.quantity !== null ? Number(row.quantity) : null,
     amount: row.amount !== null ? Number(row.amount) : null,
@@ -88,7 +84,6 @@ const ensureOrdersTable = async () => {
                 customer_name TEXT,
                 customer_email TEXT,
                 product_name TEXT,
-                product_sku TEXT,
                 product_category TEXT,
                 quantity INTEGER NOT NULL DEFAULT 1,
                 amount NUMERIC(10, 2) NOT NULL DEFAULT 0,
@@ -117,7 +112,6 @@ const ensureOrderAnalyticsTable = async () => {
                 customer_email TEXT,
                 product_id INTEGER,
                 product_name TEXT,
-                product_sku TEXT,
                 category TEXT,
                 quantity INTEGER NOT NULL DEFAULT 1,
                 amount NUMERIC(12, 2) NOT NULL DEFAULT 0,
@@ -140,7 +134,6 @@ const ensureOrderAnalyticsTable = async () => {
                 COALESCE(o.customer_email, c.email) AS customer_email,
                 o.product_id,
                 COALESCE(o.product_name, p.name) AS product_name,
-                COALESCE(o.product_sku, p.sku) AS product_sku,
                 COALESCE(o.category, o.product_category, p.category) AS category,
                 COALESCE(o.quantity, 1) AS quantity,
                 COALESCE(o.amount, 0) AS amount,
@@ -158,7 +151,6 @@ const ensureOrderAnalyticsTable = async () => {
                 customer_email = EXCLUDED.customer_email,
                 product_id = EXCLUDED.product_id,
                 product_name = EXCLUDED.product_name,
-                product_sku = EXCLUDED.product_sku,
                 category = EXCLUDED.category,
                 quantity = EXCLUDED.quantity,
                 amount = EXCLUDED.amount,
@@ -167,9 +159,49 @@ const ensureOrderAnalyticsTable = async () => {
                 created_at = EXCLUDED.created_at,
                 updated_at = EXCLUDED.updated_at
         `);
+
+        await pool.query(`
+            UPDATE customers c
+            SET total_orders = COALESCE(s.order_count, 0),
+                total_spending = COALESCE(s.total_spend, 0),
+                last_active = COALESCE((s.last_order_date + TIME '12:00:00')::timestamptz, c.last_active)
+            FROM (
+                SELECT
+                    customer_id,
+                    COUNT(*)::int AS order_count,
+                    COALESCE(SUM(CASE WHEN status = 'completed' THEN amount ELSE 0 END), 0) AS total_spend,
+                    MAX(order_date) AS last_order_date
+                FROM orders
+                WHERE customer_id IS NOT NULL
+                GROUP BY customer_id
+            ) s
+            WHERE c.id = s.customer_id;
+        `);
     } catch (err) {
         console.error('Error in ensureOrderAnalyticsTable:', err.message);
     }
+};
+
+const syncCustomerStats = async (client, userId, customerId) => {
+    if (!customerId) return;
+    const safeUserId = userId || '';
+
+    await client.query(
+        `UPDATE customers c
+         SET total_orders = COALESCE(s.order_count, 0),
+             total_spending = COALESCE(s.total_spend, 0),
+             last_active = COALESCE((s.last_order_date + TIME '12:00:00')::timestamptz, c.last_active)
+         FROM (
+             SELECT
+                 COUNT(*)::int AS order_count,
+                 COALESCE(SUM(CASE WHEN status = 'completed' THEN amount ELSE 0 END), 0) AS total_spend,
+                 MAX(order_date) AS last_order_date
+             FROM orders
+             WHERE customer_id = $1 AND (user_id = $2 OR user_id IS NULL)
+         ) s
+         WHERE c.id = $1 AND (c.user_id = $2 OR c.user_id IS NULL)`,
+        [customerId, safeUserId]
+    );
 };
 
 const syncOrderAnalyticsRecord = async (client, orderId) => {
@@ -183,7 +215,6 @@ const syncOrderAnalyticsRecord = async (client, orderId) => {
             COALESCE(o.customer_email, c.email) AS customer_email,
             o.product_id,
             COALESCE(o.product_name, p.name) AS product_name,
-            COALESCE(o.product_sku, p.sku) AS product_sku,
             COALESCE(o.category, o.product_category, p.category) AS category,
             COALESCE(o.quantity, 1) AS quantity,
             COALESCE(o.amount, 0) AS amount,
@@ -202,7 +233,6 @@ const syncOrderAnalyticsRecord = async (client, orderId) => {
             customer_email = EXCLUDED.customer_email,
             product_id = EXCLUDED.product_id,
             product_name = EXCLUDED.product_name,
-            product_sku = EXCLUDED.product_sku,
             category = EXCLUDED.category,
             quantity = EXCLUDED.quantity,
             amount = EXCLUDED.amount,
@@ -249,7 +279,7 @@ const fetchOrderDetails = async (client, userId, customerId, productId) => {
     const safeUserId = userId || '';
     const [customerResult, productResult] = await Promise.all([
         client.query('SELECT id, name, email FROM customers WHERE id = $1 AND (user_id = $2 OR user_id IS NULL)', [customerId, safeUserId]),
-        client.query('SELECT id, name, sku, category, price FROM products WHERE id = $1 AND (user_id = $2 OR user_id IS NULL)', [productId, safeUserId]),
+        client.query('SELECT id, name, category, price, stock FROM products WHERE id = $1 AND (user_id = $2 OR user_id IS NULL)', [productId, safeUserId]),
     ]);
 
     const customer = customerResult.rows[0] || null;
@@ -267,8 +297,69 @@ const fetchOrderDetails = async (client, userId, customerId, productId) => {
 };
 
 const buildOrderWritePayload = async (client, userId, payload, existingOrder = null) => {
-    const customerId = payload.customerId !== undefined ? payload.customerId : existingOrder?.customerId;
-    const productId = payload.productId !== undefined ? payload.productId : existingOrder?.productId;
+    const safeUserId = userId || '';
+    let customerId = payload.customerId !== undefined ? payload.customerId : existingOrder?.customerId;
+
+    if (customerId === undefined || customerId === null) {
+        const email = payload.newCustomer?.email || payload.customerEmail;
+        const name = payload.newCustomer?.name || payload.customerName;
+        const phone = payload.newCustomer?.phone || payload.customerPhone || null;
+
+        if (email || name) {
+            const whereClause = email
+                ? `LOWER(email) = LOWER($2)`
+                : `LOWER(name) = LOWER($2)`;
+            const searchValue = email || name;
+
+            const existingCust = await client.query(
+                `SELECT id FROM customers WHERE (user_id = $1 OR user_id IS NULL) AND ${whereClause} LIMIT 1`,
+                [safeUserId, searchValue]
+            );
+
+            if (existingCust.rows[0]) {
+                customerId = existingCust.rows[0].id;
+            } else if (name && email) {
+                const custRes = await client.query(
+                    `INSERT INTO customers (user_id, name, email, phone)
+                     VALUES ($1, $2, $3, $4)
+                     RETURNING id`,
+                    [safeUserId, name, email, phone]
+                );
+                if (custRes.rows[0]) {
+                    customerId = custRes.rows[0].id;
+                }
+            } else if (name) {
+                const generatedEmail = `${name.toLowerCase().replace(/[^a-z0-9]/g, '')}@example.com`;
+                const custRes = await client.query(
+                    `INSERT INTO customers (user_id, name, email, phone)
+                     VALUES ($1, $2, $3, $4)
+                     RETURNING id`,
+                    [safeUserId, name, generatedEmail, phone]
+                );
+                if (custRes.rows[0]) {
+                    customerId = custRes.rows[0].id;
+                }
+            }
+        }
+    }
+
+    let productId = payload.productId !== undefined ? payload.productId : existingOrder?.productId;
+
+    if (productId === undefined || productId === null) {
+        const name = payload.productName;
+
+        if (name) {
+            const existingProd = await client.query(
+                `SELECT id FROM products WHERE (user_id = $1 OR user_id IS NULL) AND LOWER(name) = LOWER($2) LIMIT 1`,
+                [safeUserId, name]
+            );
+
+            if (existingProd.rows[0]) {
+                productId = existingProd.rows[0].id;
+            }
+        }
+    }
+
     const quantity = payload.quantity !== undefined ? payload.quantity : existingOrder?.quantity ?? 1;
     const status = payload.status !== undefined ? payload.status : existingOrder?.status ?? 'pending';
     const orderDate = payload.orderDate !== undefined ? payload.orderDate : existingOrder?.orderDate ?? null;
@@ -276,15 +367,31 @@ const buildOrderWritePayload = async (client, userId, payload, existingOrder = n
     const amountProvided = payload.amount !== undefined ? payload.amount : null;
 
     if (customerId === undefined || customerId === null) {
-        throw new Error('customerId is required');
+        throw new Error('Customer (ID, Name, or Email) is required');
     }
 
     if (productId === undefined || productId === null) {
-        throw new Error('productId is required');
+        throw new Error('Product (ID or Name) is required');
     }
 
     const { customer, product } = await fetchOrderDetails(client, userId, customerId, productId);
-    const resolvedAmount = amountProvided !== null ? amountProvided : Number(product.price || 0) * Number(quantity || 0);
+
+    const productStock = Number(product.stock ?? 0);
+    let effectiveStock = productStock;
+    if (existingOrder && existingOrder.status === 'completed' && Number(existingOrder.productId) === Number(productId)) {
+        effectiveStock += Number(existingOrder.quantity || 0);
+    }
+
+    const requestedQty = Number(quantity || 1);
+    if (effectiveStock <= 0) {
+        throw new Error(`Product "${product.name}" is out of stock`);
+    }
+
+    if (requestedQty > effectiveStock) {
+        throw new Error(`Insufficient stock for "${product.name}" (only ${effectiveStock} available, requested ${requestedQty})`);
+    }
+
+    const resolvedAmount = amountProvided !== null ? amountProvided : Number(product.price || 0) * requestedQty;
 
     return {
         customerId,
@@ -292,9 +399,8 @@ const buildOrderWritePayload = async (client, userId, payload, existingOrder = n
         customerName: customer.name,
         customerEmail: customer.email,
         productName: product.name,
-        productSku: product.sku,
         productCategory: product.category,
-        quantity,
+        quantity: requestedQty,
         amount: resolvedAmount,
         orderDate,
         status,
@@ -312,8 +418,7 @@ const listOrders = async (userId, { customer, startDate, endDate, limit, offset,
         whereClauses.push(
             `(customer_name ILIKE $${whereValues.length}
               OR customer_email ILIKE $${whereValues.length}
-              OR product_name ILIKE $${whereValues.length}
-              OR product_sku ILIKE $${whereValues.length})`
+              OR product_name ILIKE $${whereValues.length})`
         );
     }
 
@@ -389,7 +494,6 @@ const createOrder = async (userId, payload) => {
                 customer_name,
                 customer_email,
                 product_name,
-                product_sku,
                 product_category,
                 quantity,
                 amount,
@@ -397,7 +501,7 @@ const createOrder = async (userId, payload) => {
                 status,
                 category
             )
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, COALESCE($11, CURRENT_DATE), $12, $13)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, COALESCE($10, CURRENT_DATE), $11, $12)
              RETURNING ${ORDER_COLUMNS.join(', ')}`,
             [
                 safeUserId,
@@ -406,7 +510,6 @@ const createOrder = async (userId, payload) => {
                 resolved.customerName,
                 resolved.customerEmail,
                 resolved.productName,
-                resolved.productSku,
                 resolved.productCategory,
                 resolved.quantity,
                 resolved.amount,
@@ -421,6 +524,7 @@ const createOrder = async (userId, payload) => {
         }
 
         await syncOrderAnalyticsRecord(client, result.rows[0].id);
+        await syncCustomerStats(client, safeUserId, resolved.customerId);
 
         await client.query('COMMIT');
 
@@ -449,7 +553,6 @@ const updateOrder = async (userId, id, payload) => {
                 customer_name AS "customerName",
                 customer_email AS "customerEmail",
                 product_name AS "productName",
-                product_sku AS "productSku",
                 product_category AS "productCategory",
                 quantity,
                 amount,
@@ -475,15 +578,14 @@ const updateOrder = async (userId, id, payload) => {
                  customer_name = $3,
                  customer_email = $4,
                  product_name = $5,
-                 product_sku = $6,
-                 product_category = $7,
-                 quantity = $8,
-                 amount = $9,
-                 order_date = COALESCE($10, CURRENT_DATE),
-                 status = $11,
-                 category = $12,
+                 product_category = $6,
+                 quantity = $7,
+                 amount = $8,
+                 order_date = COALESCE($9, CURRENT_DATE),
+                 status = $10,
+                 category = $11,
                  updated_at = NOW()
-             WHERE id = $13 AND (user_id = $14 OR user_id IS NULL)
+             WHERE id = $12 AND (user_id = $13 OR user_id IS NULL)
              RETURNING ${ORDER_COLUMNS.join(', ')}`,
             [
                 resolved.customerId,
@@ -491,7 +593,6 @@ const updateOrder = async (userId, id, payload) => {
                 resolved.customerName,
                 resolved.customerEmail,
                 resolved.productName,
-                resolved.productSku,
                 resolved.productCategory,
                 resolved.quantity,
                 resolved.amount,
@@ -524,6 +625,12 @@ const updateOrder = async (userId, id, payload) => {
         }
 
         await syncOrderAnalyticsRecord(client, id);
+        if (existingOrder.customerId) {
+            await syncCustomerStats(client, safeUserId, Number(existingOrder.customerId));
+        }
+        if (resolved.customerId && Number(resolved.customerId) !== Number(existingOrder.customerId)) {
+            await syncCustomerStats(client, safeUserId, Number(resolved.customerId));
+        }
 
         await client.query('COMMIT');
 
@@ -561,6 +668,9 @@ const deleteOrder = async (userId, id) => {
                 );
             }
             await deleteOrderAnalyticsRecord(client, id);
+            if (deletedOrder.customer_id) {
+                await syncCustomerStats(client, safeUserId, Number(deletedOrder.customer_id));
+            }
         }
 
         await client.query('COMMIT');
@@ -595,7 +705,6 @@ const bulkInsertOrders = async (userId, rows) => {
                         customer_name,
                         customer_email,
                         product_name,
-                        product_sku,
                         product_category,
                         quantity,
                         amount,
@@ -603,7 +712,7 @@ const bulkInsertOrders = async (userId, rows) => {
                         status,
                         category
                     )
-                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, COALESCE($11, CURRENT_DATE), $12, $13)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, COALESCE($10, CURRENT_DATE), $11, $12)
                      RETURNING id`,
                     [
                         safeUserId,
@@ -612,7 +721,6 @@ const bulkInsertOrders = async (userId, rows) => {
                         resolved.customerName,
                         resolved.customerEmail,
                         resolved.productName,
-                        resolved.productSku,
                         resolved.productCategory,
                         resolved.quantity,
                         resolved.amount,
@@ -627,6 +735,9 @@ const bulkInsertOrders = async (userId, rows) => {
                 }
 
                 await syncOrderAnalyticsRecord(client, insertResult.rows[0].id);
+                if (resolved.customerId) {
+                    await syncCustomerStats(client, safeUserId, resolved.customerId);
+                }
                 imported += 1;
             } catch (error) {
                 errors.push({ row: i + 1, message: error.message });

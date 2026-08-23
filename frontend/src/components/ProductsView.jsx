@@ -25,7 +25,6 @@ const normalizeProduct = (product) => {
     return {
         id: product.id,
         name: safeName,
-        sku: product.sku ?? null,
         description: product.description ?? '',
         price: Number.isNaN(priceValue) ? 0 : priceValue,
         priceLabel: formatPriceLabel(priceValue),
@@ -97,7 +96,6 @@ const ProductsView = () => {
     const handleSaveProduct = async (formData) => {
         const payload = {
             name: formData.name?.trim(),
-            sku: formData.sku?.trim(),
             price: Number(formData.price) || 0,
             stock: Number(formData.stock) || 0,
             category: (formData.newCategory || formData.category || '').trim() || null,
