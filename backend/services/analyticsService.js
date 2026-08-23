@@ -96,7 +96,7 @@ const fetchTrends = async (userId, { startDate, endDate, interval }) => {
             COALESCE(SUM(amount), 0) AS revenue,
             COUNT(*)::int AS orders
          FROM order_analytics
-         WHERE (user_id = $1 OR user_id IS NULL) AND order_date >= $2::date AND order_date <= $3::date
+         WHERE user_id = $1 AND order_date >= $2::date AND order_date <= $3::date AND status = 'completed'
          GROUP BY bucket_key
          ORDER BY bucket_key ASC`,
         [safeUserId, startDate.toISOString().slice(0, 10), endDate.toISOString().slice(0, 10)]
@@ -138,7 +138,7 @@ const fetchPeaks = async (userId, { startDate, endDate, interval, limit }) => {
             COALESCE(SUM(amount), 0) AS revenue,
             COUNT(*)::int AS orders
          FROM order_analytics
-         WHERE (user_id = $1 OR user_id IS NULL) AND order_date >= $2::date AND order_date <= $3::date
+         WHERE user_id = $1 AND order_date >= $2::date AND order_date <= $3::date AND status = 'completed'
          GROUP BY bucket
          ORDER BY revenue DESC
          LIMIT $4`,
@@ -160,7 +160,7 @@ const fetchKpis = async (userId, { startDate, endDate }) => {
             COUNT(*)::int AS total_orders,
             COALESCE(AVG(amount), 0) AS avg_order_value
          FROM order_analytics
-         WHERE (user_id = $1 OR user_id IS NULL) AND order_date >= $2::date AND order_date <= $3::date`,
+         WHERE user_id = $1 AND order_date >= $2::date AND order_date <= $3::date AND status = 'completed'`,
         [safeUserId, startDate.toISOString().slice(0, 10), endDate.toISOString().slice(0, 10)]
     );
 
@@ -189,7 +189,7 @@ const fetchCategoryBreakdown = async (userId, { startDate, endDate }) => {
             COALESCE(SUM(amount), 0) AS revenue,
             COUNT(*)::int AS orders
          FROM order_analytics
-         WHERE (user_id = $1 OR user_id IS NULL) AND order_date >= $2::date AND order_date <= $3::date
+         WHERE user_id = $1 AND order_date >= $2::date AND order_date <= $3::date AND status = 'completed'
          GROUP BY COALESCE(category, 'Uncategorized')
          ORDER BY revenue DESC`,
         [safeUserId, startDate.toISOString().slice(0, 10), endDate.toISOString().slice(0, 10)]
