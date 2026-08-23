@@ -1,5 +1,5 @@
 const { getCustomerById, saveChurnScore } = require('./customerService');
-const { rebuildInsights } = require('./insightService');
+const { rebuildInsights, generateInsightForSingleCustomer } = require('./insightService');
 
 const ML_SERVICE_URL = process.env.ML_SERVICE_URL || 'http://localhost:5001';
 
@@ -26,7 +26,16 @@ const scoreCustomer = async (userId, customerId) => {
     }
 
     const { score } = await response.json();
-    return saveChurnScore(userId, customerId, score);
+    const updated = await saveChurnScore(userId, customerId, score);
+
+    // generate/refresh this customer's AI insight now that their score changed
+    try {
+        await generateInsightForSingleCustomer(userId, updated);
+    } catch (err) {
+        console.error(`Insight generation failed for customer ${customerId}:`, err.message);
+    }
+
+    return updated;
 };
 
 const scoreAllCustomers = async (userId) => {
