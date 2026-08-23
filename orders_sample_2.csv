@@ -1,9 +1,9 @@
-customer_id,product_id,customer_name,customer_email,product_name,product_sku,product_category,quantity,amount,order_date,status,category
-28,2,Mehedi Hasan,mehedi.hasan@example.com,Bangle,,Accessories,1,720,2026-05-05,completed,Accessories
-30,3,Tania Rahman,tania.rahman@example.com,Black beatles,,Accessories,1,1250,2026-05-18,completed,Accessories
-22,7,Imran Hossain,imran.hossain@example.com,Phone,,Electronics,1,540,2026-06-02,completed,Electronics
-23,2,Maliha Akter,maliha.akter@example.com,Bangle,,Accessories,1,3100,2026-06-11,completed,Accessories
-31,7,Tanvir Ahmed,tanvir.ahmed@example.com,Phone,,Electronics,1,875,2026-06-19,completed,Electronics
-25,3,Nusrat Jahan,nusrat.jahan@example.com,Black beatles,,Accessories,1,1950,2026-07-03,completed,Accessories
-29,2,Fahim Rahman,fahim.rahman@example.com,Bangle,,Accessories,1,430,2026-07-15,completed,Accessories
-32,7,Sadia Karim,sadia.karim@example.com,Phone,,Electronics,1,2750,2026-07-28,completed,Electronics
+customer_name,customer_email,order_date,amount,status
+Rodoshi Tasnin,mehedi.hasan@example.com,2026-05-05,720,completed
+Oishee Nishat,tania.rahman@example.com,2026-05-18,1250,completed
+ABC Afreen,imran.hossain@example.com,2026-06-02,540,completed
+Erling Haaland,maliha.akter@example.com,2026-06-11,3100,completed
+Tanvir Ahmed,tanvir.ahmed@example.com,2026-06-19,875,completed
+Nusrat Jahan,nusrat.jahan@example.com,2026-07-03,1950,completed
+Fahim Rahman,fahim.rahman@example.com,Phone2026-07-15,430,completed
+Sadia Karim,sadia.karim@example.com,2026-07-28,2750,completed

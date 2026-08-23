@@ -1,0 +1,5 @@
+customer_name,customer_email,product_name,quantity,amount,order_date,status
+Rodoshi Tasnim,john.doe@example.com,Black beatles,2,50.00,2023-08-20,completed
+Oishee Nishat,jane.smith@testmail.com,Phone,1,120.00,2026-08-21,completed
+Erling Haaland,alice.j@provider.com,Black beatles,1,45.00,2026-01-22,completed
+

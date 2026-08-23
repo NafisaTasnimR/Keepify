@@ -53,12 +53,12 @@ ${instruction}
 
 Respond ONLY with a JSON array of exactly 3 insight objects, no markdown:
 [
-  {"insight": "one clear business observation using specific numbers from the data", "severity": "positive|warning|neutral"},
+  {"insight": "ONE short punchy sentence, max 15 words. Lead with the number. Wrap the key figure in **bold**", "severity": "positive|warning|neutral"},
   {"insight": "...", "severity": "..."},
   {"insight": "...", "severity": "..."}
 ]
 severity must be: "positive" for good news, "warning" for problems/risks, "neutral" for general observations.
-Always use specific numbers from the data. Never be vague.`;
+Keep it tight: no setup, no "this indicates that" or "this suggests", just the number and what it means in plain language. Always use specific numbers from the data. Never be vague.`;
 
     for (let attempt = 0; attempt <= retries; attempt++) {
         try {

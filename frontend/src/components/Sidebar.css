@@ -53,63 +53,110 @@
 }
 
 .nav-sections {
-    padding: 16px 0 20px;
+    padding: 18px 12px 20px;
     flex: 1;
 }
 
 .nav-section {
-    margin-bottom: 6px;
+    margin-bottom: 14px;
+}
+
+.nav-section + .nav-section {
+    padding-top: 14px;
+    border-top: 1px solid rgba(157, 166, 204, 0.1);
 }
 
 .nav-title {
     font-size: 10px;
-    font-weight: 600;
+    font-weight: 700;
     text-transform: uppercase;
     color: var(--accent2);
-    padding: 10px 20px 6px;
-    letter-spacing: 0.8px;
-    opacity: 0.7;
+    padding: 0 8px 8px;
+    letter-spacing: 1px;
+    opacity: 0.65;
 }
 
 .nav-menu {
     list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
 }
 
 .nav-item {
-    padding: 9px 20px;
+    padding: 8px 10px;
     cursor: pointer;
-    transition: all 0.18s ease;
-    color: rgba(232, 236, 248, 0.72);
+    transition: background-color 0.16s ease, color 0.16s ease, transform 0.16s ease;
+    color: rgba(232, 236, 248, 0.68);
     font-size: 13.5px;
     font-weight: 400;
-    border-left: 2px solid transparent;
     display: flex;
     align-items: center;
-    margin: 1px 0;
+    gap: 10px;
+    border-radius: 8px;
+    position: relative;
 }
 
 .nav-item:hover {
     background-color: rgba(157, 166, 204, 0.12);
     color: #f0f2fa;
-    border-left-color: rgba(157, 166, 204, 0.4);
+    transform: translateX(2px);
+}
+
+.nav-item:hover .nav-icon {
+    color: #f0f2fa;
 }
 
 .nav-item.active {
-    background-color: rgba(157, 166, 204, 0.18);
-    border-left-color: var(--accent2);
+    background-color: rgba(157, 166, 204, 0.16);
     color: #f0f2fa;
     font-weight: 500;
 }
 
+.nav-item.active::before {
+    content: '';
+    position: absolute;
+    left: -12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 18px;
+    border-radius: 0 3px 3px 0;
+    background: var(--accent2);
+}
+
+.nav-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 18px;
+    height: 18px;
+    color: rgba(232, 236, 248, 0.55);
+    transition: color 0.16s ease;
+}
+
+.nav-item.active .nav-icon {
+    color: var(--accent2);
+}
+
+.nav-label {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .nav-badge {
     margin-left: auto;
-    background: rgba(239, 68, 68, 0.25);
+    background: rgba(239, 68, 68, 0.22);
     color: #fca5a5;
     font-size: 10px;
-    font-weight: 600;
-    padding: 1px 6px;
+    font-weight: 700;
+    padding: 1.5px 6.5px;
     border-radius: 8px;
     border: 1px solid rgba(239, 68, 68, 0.3);
+    line-height: 1.5;
 }
 
 /* ─── SCROLLBARS ──────────────────────────────────────────────── */
