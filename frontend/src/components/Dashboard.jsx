@@ -24,6 +24,17 @@ const EMPTY_SALES_DATA = [
     { day: 'Sun', value: 0 },
 ];
 
+const STATUS_COLOR_MAP = {
+    active: '#1f9d63',
+    'in-stock': '#1f9d63',
+    'low-stock': '#d97706',
+    'out-of-stock': '#dc2626',
+    inactive: '#7c9186',
+    draft: '#7c9186',
+};
+
+const FALLBACK_DONUT_COLORS = ['#467a63', '#98fbcb', '#24392f', '#305040'];
+
 const formatCurrency = (value, currencySymbol = '৳') => {
     const amount = Number(value);
     if (Number.isNaN(amount)) {
@@ -45,6 +56,70 @@ const getInitials = (name) => {
     return name.slice(0, 2).toUpperCase();
 };
 
+const formatStatusLabel = (status) => {
+    if (!status) return 'Unknown';
+    return status
+        .split(/[-_\s]+/)
+        .filter(Boolean)
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+};
+
+// Reusable donut/pie chart built with plain SVG — no charting library needed.
+const DonutChart = ({ data, size = 160, thickness = 22, centerValue, centerLabel, hoveredIndex, onHover }) => {
+    const total = data.reduce((sum, d) => sum + d.value, 0);
+    const radius = (size - thickness) / 2;
+    const circumference = 2 * Math.PI * radius;
+    const cx = size / 2;
+    const cy = size / 2;
+    let cumulative = 0;
+
+    return (
+        <svg viewBox={`0 0 ${size} ${size}`} className="donut-svg" role="img" aria-label={`${centerLabel}: ${centerValue}`}>
+            <g transform={`rotate(-90 ${cx} ${cy})`}>
+                {total === 0 ? (
+                    <circle cx={cx} cy={cy} r={radius} fill="none" stroke="#eaf6ef" strokeWidth={thickness} />
+                ) : (
+                    data.map((d, i) => {
+                        const fraction = d.value / total;
+                        const dash = fraction * circumference;
+                        const gap = circumference - dash;
+                        const dashoffset = -cumulative;
+                        cumulative += dash;
+                        const isDimmed = hoveredIndex !== null && hoveredIndex !== undefined && hoveredIndex !== i;
+                        return (
+                            <circle
+                                key={d.label}
+                                cx={cx}
+                                cy={cy}
+                                r={radius}
+                                fill="none"
+                                stroke={d.color}
+                                strokeWidth={hoveredIndex === i ? thickness + 4 : thickness}
+                                strokeDasharray={`${dash} ${gap}`}
+                                strokeDashoffset={dashoffset}
+                                className="donut-segment"
+                                style={{ opacity: isDimmed ? 0.45 : 1 }}
+                                onMouseEnter={() => onHover(i)}
+                                onMouseLeave={() => onHover(null)}
+                                tabIndex={0}
+                                onFocus={() => onHover(i)}
+                                onBlur={() => onHover(null)}
+                            />
+                        );
+                    })
+                )}
+            </g>
+            <text x={cx} y={cy - 4} textAnchor="middle" className="donut-center-value">
+                {centerValue}
+            </text>
+            <text x={cx} y={cy + 16} textAnchor="middle" className="donut-center-label">
+                {centerLabel}
+            </text>
+        </svg>
+    );
+};
+
 const Dashboard = () => {
     const navigate = useNavigate();
     const [activeMenu, setActiveMenu] = useState('Dashboard');
@@ -60,6 +135,12 @@ const Dashboard = () => {
     const [churnAlerts, setChurnAlerts] = useState([]);
     const [topProducts, setTopProducts] = useState([]);
     const [analyticsError, setAnalyticsError] = useState('');
+    const [chartView, setChartView] = useState('bar');
+    const [hoveredPoint, setHoveredPoint] = useState(null);
+    const [hoveredChurnIndex, setHoveredChurnIndex] = useState(null);
+    const [hoveredStatusIndex, setHoveredStatusIndex] = useState(null);
+    const [hoveredPerfIndex, setHoveredPerfIndex] = useState(null);
+    const [hoveredStockIndex, setHoveredStockIndex] = useState(null);
 
     useEffect(() => {
         const token = localStorage.getItem('token');
@@ -91,15 +172,29 @@ const Dashboard = () => {
     }, [navigate]);
 
     const chartRef = useRef(null);
-    const [chartHeight, setChartHeight] = useState(160);
+    const [chartSize, setChartSize] = useState({ width: 600, height: 160 });
 
+    // Measure the actual chart box (width AND height) with a ResizeObserver so the
+    // chart always matches its real rendered size — independent of any other card.
     useEffect(() => {
+        const node = chartRef.current;
+        if (!node) return undefined;
+
         const measure = () => {
-            if (chartRef.current) {
-                setChartHeight(chartRef.current.clientHeight);
-            }
+            setChartSize({
+                width: node.clientWidth || 600,
+                height: node.clientHeight || 160,
+            });
         };
+
         measure();
+
+        if (typeof ResizeObserver !== 'undefined') {
+            const observer = new ResizeObserver(measure);
+            observer.observe(node);
+            return () => observer.disconnect();
+        }
+
         window.addEventListener('resize', measure);
         return () => window.removeEventListener('resize', measure);
     }, []);
@@ -186,7 +281,56 @@ const Dashboard = () => {
 
     const maxValue = Math.max(...salesData.map(d => d.value), 1);
     const hasSalesThisWeek = salesData.some(d => d.value > 0);
-    const BAR_AREA = Math.max(chartHeight - 24, 40);
+    const BAR_AREA = Math.max(chartSize.height - 24, 40);
+
+    // Derived points/paths for the interactive line-chart view of the same sales data.
+    const areaBaseline = chartSize.height - 24;
+    const linePoints = salesData.map((item, i) => {
+        const x = salesData.length > 1 ? (i / (salesData.length - 1)) * chartSize.width : chartSize.width / 2;
+        const y = areaBaseline - (item.value / maxValue) * BAR_AREA;
+        return { ...item, x, y };
+    });
+    const linePath = linePoints.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+    const areaPath = `${linePath} L ${linePoints[linePoints.length - 1].x} ${areaBaseline} L ${linePoints[0].x} ${areaBaseline} Z`;
+    const weeklyAverage = salesData.reduce((sum, d) => sum + d.value, 0) / (salesData.length || 1);
+    const avgLineY = areaBaseline - (weeklyAverage / maxValue) * BAR_AREA;
+    const formattedAvg = formatCurrency(weeklyAverage);
+
+    // Churn risk pie/donut — built from the same churnAlerts already on screen.
+    const churnRiskBreakdown = [
+        { label: 'High risk', value: churnAlerts.filter((a) => a.risk === 'High').length, color: '#dc2626' },
+        { label: 'Medium risk', value: churnAlerts.filter((a) => a.risk === 'Medium').length, color: '#d97706' },
+    ].filter((item) => item.value > 0);
+
+    // Product status pie/donut — built from the same topProducts already on screen.
+    const statusCounts = topProducts.reduce((acc, product) => {
+        const key = (product.status || 'unknown').toLowerCase();
+        acc[key] = (acc[key] || 0) + 1;
+        return acc;
+    }, {});
+    const productStatusBreakdown = Object.entries(statusCounts).map(([status, count], idx) => ({
+        label: formatStatusLabel(status),
+        value: count,
+        color: STATUS_COLOR_MAP[status] || FALLBACK_DONUT_COLORS[idx % FALLBACK_DONUT_COLORS.length],
+    }));
+
+    // Product performance pie/donut — based on the trend percentage from the API.
+    const perfData = topProducts.map((p, i) => {
+        const perfValue = parseInt(p.performance?.replace(/[+%]/g, '') || '0', 10);
+        return {
+            label: p.name,
+            value: Math.abs(perfValue),
+            actualValue: p.performance,
+            color: FALLBACK_DONUT_COLORS[i % FALLBACK_DONUT_COLORS.length],
+        };
+    }).filter(d => d.value !== 0);
+
+    // Stock pie/donut — based on current stock levels.
+    const stockData = topProducts.map((p, i) => ({
+        label: p.name,
+        value: p.stock || 0,
+        color: FALLBACK_DONUT_COLORS[i % FALLBACK_DONUT_COLORS.length],
+    })).filter(d => d.value > 0);
 
     const navSections = [
         {
@@ -341,48 +485,133 @@ const Dashboard = () => {
 
                             {/* Charts row */}
                             <div className="charts-section">
-                                {/* Sales bar chart */}
+                                {/* Sales chart (bar / line toggle) */}
                                 <div className="card sales-card">
-                                    <h3>Sales this week</h3>
+                                    <div className="card-header-row">
+                                        <h3>Sales this week</h3>
+                                        <div className="chart-toggle" role="tablist" aria-label="Sales chart type">
+                                            <button
+                                                type="button"
+                                                role="tab"
+                                                aria-selected={chartView === 'bar'}
+                                                className={chartView === 'bar' ? 'active' : ''}
+                                                onClick={() => setChartView('bar')}
+                                            >
+                                                Bar
+                                            </button>
+                                            <button
+                                                type="button"
+                                                role="tab"
+                                                aria-selected={chartView === 'line'}
+                                                className={chartView === 'line' ? 'active' : ''}
+                                                onClick={() => setChartView('line')}
+                                            >
+                                                Line
+                                            </button>
+                                        </div>
+                                    </div>
                                     <div className="chart-wrapper" ref={chartRef}>
                                         {hasSalesThisWeek ? (
-                                            <>
-                                                <div className="sales-gridlines" aria-hidden="true">
-                                                    <span />
-                                                    <span />
-                                                    <span />
-                                                </div>
-                                                <div className="bars">
-                                                    {salesData.map((item, i) => {
-                                                        const isPeak = item.value === maxValue && item.value > 0;
-                                                        return (
-                                                            <div
+                                            chartView === 'bar' ? (
+                                                <>
+                                                    <div className="sales-gridlines" aria-hidden="true">
+                                                        <span />
+                                                        <span />
+                                                        <span />
+                                                    </div>
+                                                    <div className="bars">
+                                                        {salesData.map((item, i) => {
+                                                            const isPeak = item.value === maxValue && item.value > 0;
+                                                            return (
+                                                                <div
+                                                                    key={i}
+                                                                    className="bar-container"
+                                                                    tabIndex={0}
+                                                                    role="img"
+                                                                    aria-label={`${item.day}: ${formatCurrency(item.value)}`}
+                                                                >
+                                                                    <div className="bar-tooltip">
+                                                                        <strong>{formatCurrency(item.value)}</strong>
+                                                                        <span>{item.day}</span>
+                                                                    </div>
+                                                                    <div
+                                                                        className={`bar ${isPeak ? 'is-peak' : ''}`}
+                                                                        style={{ height: `${Math.round((item.value / maxValue) * BAR_AREA)}px` }}
+                                                                    />
+                                                                    <span className="bar-label">{item.day}</span>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <svg
+                                                        width="100%"
+                                                        height="100%"
+                                                        viewBox={`0 0 ${chartSize.width} ${chartSize.height}`}
+                                                        preserveAspectRatio="none"
+                                                        className="sales-line-svg"
+                                                    >
+                                                        <defs>
+                                                            <linearGradient id="salesAreaGradient" x1="0" y1="0" x2="0" y2="1">
+                                                                <stop offset="0%" stopColor="#98fbcb" stopOpacity="0.5" />
+                                                                <stop offset="100%" stopColor="#98fbcb" stopOpacity="0" />
+                                                            </linearGradient>
+                                                        </defs>
+                                                        <line x1="0" y1={avgLineY} x2={chartSize.width} y2={avgLineY} className="sales-avg-line" />
+                                                        <text x={4} y={avgLineY - 6} className="sales-avg-label">
+                                                            Avg {formattedAvg}
+                                                        </text>
+                                                        <path d={areaPath} fill="url(#salesAreaGradient)" stroke="none" />
+                                                        <path d={linePath} fill="none" stroke="#467a63" strokeWidth="2.5" />
+                                                        {linePoints.map((p, i) => (
+                                                            <circle
                                                                 key={i}
-                                                                className="bar-container"
+                                                                cx={p.x}
+                                                                cy={p.y}
+                                                                r={hoveredPoint === i ? 6 : 4}
+                                                                fill={p.value === maxValue ? '#467a63' : '#ffffff'}
+                                                                stroke="#467a63"
+                                                                strokeWidth="2"
+                                                                className="sales-line-point"
                                                                 tabIndex={0}
                                                                 role="img"
-                                                                aria-label={`${item.day}: ${formatCurrency(item.value)}`}
-                                                            >
-                                                                <div className="bar-tooltip">
-                                                                    <strong>{formatCurrency(item.value)}</strong>
-                                                                    <span>{item.day}</span>
-                                                                </div>
-                                                                <div
-                                                                    className={`bar ${isPeak ? 'is-peak' : ''}`}
-                                                                    style={{ height: `${Math.round((item.value / maxValue) * BAR_AREA)}px` }}
-                                                                />
-                                                                <span className="bar-label">{item.day}</span>
-                                                            </div>
-                                                        );
-                                                    })}
-                                                </div>
-                                            </>
+                                                                aria-label={`${p.day}: ${formatCurrency(p.value)}`}
+                                                                onMouseEnter={() => setHoveredPoint(i)}
+                                                                onMouseLeave={() => setHoveredPoint(null)}
+                                                                onFocus={() => setHoveredPoint(i)}
+                                                                onBlur={() => setHoveredPoint(null)}
+                                                            />
+                                                        ))}
+                                                    </svg>
+                                                    {hoveredPoint !== null && linePoints[hoveredPoint] && (
+                                                        <div
+                                                            className="sales-line-tooltip"
+                                                            style={{
+                                                                left: `${linePoints[hoveredPoint].x}px`,
+                                                                top: `${linePoints[hoveredPoint].y}px`,
+                                                            }}
+                                                        >
+                                                            <strong>{formatCurrency(linePoints[hoveredPoint].value)}</strong>
+                                                            <span>{linePoints[hoveredPoint].day}</span>
+                                                        </div>
+                                                    )}
+                                                </>
+                                            )
                                         ) : (
                                             <div className="sales-empty-state">
                                                 <p>No sales recorded in the last 7 days.</p>
                                             </div>
                                         )}
                                     </div>
+                                    {hasSalesThisWeek && chartView === 'line' && (
+                                        <div className="sales-line-labels">
+                                            {salesData.map((item, i) => (
+                                                <span key={i}>{item.day}</span>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Churn alerts */}
@@ -413,39 +642,175 @@ const Dashboard = () => {
                                 </div>
                             </div>
 
-                            {/* Top products table */}
-                            <div className="card top-products-card">
-                                <h3>Products</h3>
-                                {topProducts.length > 0 ? (
-                                    <table className="products-table">
-                                        <thead>
-                                            <tr>
-                                                <th>Product</th>
-                                                <th>Price</th>
-                                                <th>Stock</th>
-                                                <th>Status</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {topProducts.map((product, i) => (
-                                                <tr key={i}>
-                                                    <td>{product.name}</td>
-                                                    <td>{formatCurrency(product.price)}</td>
-                                                    <td>{product.stock}</td>
-                                                    <td>
-                                                        <span className={`status-badge ${product.status}`}>
-                                                            {product.status}
-                                                        </span>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                ) : (
-                                    <p style={{ color: '#888', fontStyle: 'italic', padding: '16px' }}>
-                                        No products yet. Click on "Products" in the sidebar to add your first product.
-                                    </p>
-                                )}
+                            {/* Pie/donut insight charts */}
+                            <div className="insights-section">
+                                <div className="card insight-card">
+                                    <h3>Churn risk breakdown</h3>
+                                    {churnAlerts.length > 0 ? (
+                                        <>
+                                            <div className="donut-chart-row">
+                                                <div className="donut-svg-wrapper">
+                                                    <DonutChart
+                                                        data={churnRiskBreakdown}
+                                                        centerValue={churnAlerts.length}
+                                                        centerLabel="At risk"
+                                                        hoveredIndex={hoveredChurnIndex}
+                                                        onHover={setHoveredChurnIndex}
+                                                    />
+                                                </div>
+                                                <div className="donut-legend">
+                                                    {churnRiskBreakdown.map((item, i) => (
+                                                        <div
+                                                            key={item.label}
+                                                            className={`legend-item ${hoveredChurnIndex === i ? 'is-active' : ''}`}
+                                                            onMouseEnter={() => setHoveredChurnIndex(i)}
+                                                            onMouseLeave={() => setHoveredChurnIndex(null)}
+                                                        >
+                                                            <span className="legend-swatch" style={{ backgroundColor: item.color }} />
+                                                            <span className="legend-text">{item.label}</span>
+                                                            <span className="legend-value">
+                                                                {item.value} · {Math.round((item.value / churnAlerts.length) * 100)}%
+                                                            </span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                            <p className="insight-footnote">
+                                                Based on the {churnAlerts.length} at-risk customers shown above.
+                                            </p>
+                                        </>
+                                    ) : (
+                                        <p style={{ color: '#888', fontStyle: 'italic', padding: '12px 0' }}>
+                                            No churn risk data to display yet.
+                                        </p>
+                                    )}
+                                </div>
+
+                                <div className="card insight-card">
+                                    <h3>Product status breakdown</h3>
+                                    {topProducts.length > 0 ? (
+                                        <>
+                                            <div className="donut-chart-row">
+                                                <div className="donut-svg-wrapper">
+                                                    <DonutChart
+                                                        data={productStatusBreakdown}
+                                                        centerValue={topProducts.length}
+                                                        centerLabel="Products"
+                                                        hoveredIndex={hoveredStatusIndex}
+                                                        onHover={setHoveredStatusIndex}
+                                                    />
+                                                </div>
+                                                <div className="donut-legend">
+                                                    {productStatusBreakdown.map((item, i) => (
+                                                        <div
+                                                            key={item.label}
+                                                            className={`legend-item ${hoveredStatusIndex === i ? 'is-active' : ''}`}
+                                                            onMouseEnter={() => setHoveredStatusIndex(i)}
+                                                            onMouseLeave={() => setHoveredStatusIndex(null)}
+                                                        >
+                                                            <span className="legend-swatch" style={{ backgroundColor: item.color }} />
+                                                            <span className="legend-text">{item.label}</span>
+                                                            <span className="legend-value">
+                                                                {item.value} · {Math.round((item.value / topProducts.length) * 100)}%
+                                                            </span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                            <p className="insight-footnote">
+                                                Based on the {topProducts.length} products shown below.
+                                            </p>
+                                        </>
+                                    ) : (
+                                        <p style={{ color: '#888', fontStyle: 'italic', padding: '16px' }}>
+                                            No products yet. Click on "Products" in the sidebar to add your first product.
+                                        </p>
+                                    )}
+                                </div>
+
+                                <div className="card insight-card">
+                                    <h3>Product Performance</h3>
+                                    {topProducts.length > 0 ? (
+                                        <>
+                                            <div className="donut-chart-row">
+                                                <div className="donut-svg-wrapper">
+                                                    <DonutChart
+                                                        data={perfData}
+                                                        centerValue={perfData.length > 0 ? 'Trend' : '0%'}
+                                                        centerLabel="Growth"
+                                                        hoveredIndex={hoveredPerfIndex}
+                                                        onHover={setHoveredPerfIndex}
+                                                    />
+                                                </div>
+                                                <div className="donut-legend">
+                                                    {perfData.map((item, i) => (
+                                                        <div
+                                                            key={item.label}
+                                                            className={`legend-item ${hoveredPerfIndex === i ? 'is-active' : ''}`}
+                                                            onMouseEnter={() => setHoveredPerfIndex(i)}
+                                                            onMouseLeave={() => setHoveredPerfIndex(null)}
+                                                        >
+                                                            <span className="legend-swatch" style={{ backgroundColor: item.color }} />
+                                                            <span className="legend-text">{item.label}</span>
+                                                            <span className="legend-value">
+                                                                {item.actualValue} · {Math.round((item.value / perfData.reduce((sum, p) => sum + p.value, 0)) * 100) || 0}%
+                                                            </span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                            <p className="insight-footnote">
+                                                Based on the {topProducts.length} top products.
+                                            </p>
+                                        </>
+                                    ) : (
+                                        <p style={{ color: '#888', fontStyle: 'italic', padding: '16px' }}>
+                                            No product performance data available.
+                                        </p>
+                                    )}
+                                </div>
+
+                                <div className="card insight-card">
+                                    <h3>Stock Levels</h3>
+                                    {topProducts.length > 0 ? (
+                                        <>
+                                            <div className="donut-chart-row">
+                                                <div className="donut-svg-wrapper">
+                                                    <DonutChart
+                                                        data={stockData}
+                                                        centerValue={topProducts.reduce((sum, p) => sum + (p.stock || 0), 0)}
+                                                        centerLabel="Total Stock"
+                                                        hoveredIndex={hoveredStockIndex}
+                                                        onHover={setHoveredStockIndex}
+                                                    />
+                                                </div>
+                                                <div className="donut-legend">
+                                                    {stockData.map((item, i) => (
+                                                        <div
+                                                            key={item.label}
+                                                            className={`legend-item ${hoveredStockIndex === i ? 'is-active' : ''}`}
+                                                            onMouseEnter={() => setHoveredStockIndex(i)}
+                                                            onMouseLeave={() => setHoveredStockIndex(null)}
+                                                        >
+                                                            <span className="legend-swatch" style={{ backgroundColor: item.color }} />
+                                                            <span className="legend-text">{item.label}</span>
+                                                            <span className="legend-value">
+                                                                {item.value} · {Math.round((item.value / topProducts.reduce((sum, p) => sum + (p.stock || 0), 0)) * 100) || 0}%
+                                                            </span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                            <p className="insight-footnote">
+                                                Based on the {topProducts.length} top products.
+                                            </p>
+                                        </>
+                                    ) : (
+                                        <p style={{ color: '#888', fontStyle: 'italic', padding: '16px' }}>
+                                            No stock data available.
+                                        </p>
+                                    )}
+                                </div>
                             </div>
                         </>
                     )}

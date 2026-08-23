@@ -330,16 +330,70 @@ body {
     letter-spacing: -0.1px;
 }
 
+/* Header row for cards that also need a control (e.g. the chart type toggle) */
+.card-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 18px;
+    flex-shrink: 0;
+}
+
+.card-header-row h3 {
+    margin-bottom: 0;
+}
+
+.chart-toggle {
+    display: inline-flex;
+    background: var(--bg);
+    border: 1px solid var(--border-card);
+    border-radius: 999px;
+    padding: 2px;
+    gap: 2px;
+    flex-shrink: 0;
+}
+
+.chart-toggle button {
+    border: none;
+    background: none;
+    font-family: var(--font-body);
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--text-muted);
+    padding: 5px 12px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.chart-toggle button.active {
+    background: var(--accent);
+    color: #f0faf5;
+}
+
 /* ─── SALES CHART ─────────────────────────────────────────────── */
 
-/* chart-wrapper fills ALL remaining height inside the card */
+/*
+ * FIX: previously .sales-card and .churn-card had no fixed height, so CSS grid's
+ * `align-items: stretch` on .charts-section made BOTH cards match whichever one
+ * was taller. That meant a growing churn/customer list stretched the sales card
+ * (and therefore the chart) vertically too. Giving both a fixed height, and making
+ * the churn list scroll internally, decouples them completely.
+ */
+.sales-card,
+.churn-card {
+    height: 360px;
+    display: flex;
+    flex-direction: column;
+}
+
+/* chart-wrapper fills the remaining height inside the fixed-height card */
 .chart-wrapper {
     position: relative;
     width: 100%;
     flex: 1;
-    /* grow to fill card height */
-    min-height: 160px;
-    /* floor so it never collapses */
+    min-height: 0;
+    /* required so this flex child doesn't force the card to grow */
 }
 
 .sales-gridlines {
@@ -468,16 +522,83 @@ body {
     font-weight: 500;
 }
 
-/* Make sales-card a flex column so chart-wrapper can grow */
-.sales-card {
+/* ─── SALES LINE CHART (interactive alternative view) ────────── */
+.sales-line-svg {
+    display: block;
+}
+
+.sales-avg-line {
+    stroke: var(--text-muted);
+    stroke-width: 1;
+    stroke-dasharray: 4 4;
+}
+
+.sales-avg-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    fill: var(--text-muted);
+}
+
+.sales-line-point {
+    cursor: pointer;
+    transition: r 0.15s ease;
+}
+
+.sales-line-tooltip {
+    position: absolute;
+    transform: translate(-50%, -130%);
+    background: var(--sidebar);
+    color: #f0f2fa;
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-size: 11.5px;
     display: flex;
     flex-direction: column;
+    align-items: center;
+    gap: 1px;
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 5;
+}
+
+.sales-line-tooltip strong {
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.sales-line-labels {
+    display: flex;
+    margin-top: 8px;
+    flex-shrink: 0;
+}
+
+.sales-line-labels span {
+    flex: 1;
+    text-align: center;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.sales-line-labels span:first-child {
+    text-align: left;
+}
+
+.sales-line-labels span:last-child {
+    text-align: right;
 }
 
 .alerts-list {
     display: flex;
     flex-direction: column;
     gap: 0;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding-right: 4px;
+    /* FIX: this list now scrolls internally instead of growing the card
+       (and therefore the sales chart next to it) taller. */
 }
 
 .alert-item {
@@ -546,6 +667,115 @@ body {
     background-color: #fef3c7;
     color: #d97706;
     border-color: #fcd34d;
+}
+
+/* ─── INSIGHT DONUT/PIE CHARTS ────────────────────────────────── */
+.insights-section {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 24px;
+}
+
+.insight-card {
+    height: 300px;
+    display: flex;
+    flex-direction: column;
+}
+
+.insight-card h3 {
+    flex-shrink: 0;
+}
+
+.donut-chart-row {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    flex: 1;
+    min-height: 0;
+}
+
+.donut-svg-wrapper {
+    width: 160px;
+    height: 160px;
+    flex-shrink: 0;
+}
+
+.donut-svg {
+    width: 100%;
+    height: 100%;
+}
+
+.donut-center-value {
+    font-family: var(--font-mono);
+    font-size: 22px;
+    font-weight: 700;
+    fill: var(--text-primary);
+}
+
+.donut-center-label {
+    font-family: var(--font-body);
+    font-size: 10px;
+    fill: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+.donut-segment {
+    cursor: pointer;
+    transition: stroke-width 0.15s ease, opacity 0.15s ease;
+}
+
+.donut-legend {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    overflow-y: auto;
+    min-height: 0;
+    padding-right: 4px;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    padding: 4px 6px;
+    border-radius: 6px;
+    transition: background-color 0.15s ease;
+    cursor: default;
+}
+
+.legend-item.is-active {
+    background-color: var(--border-card);
+}
+
+.legend-swatch {
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+    flex-shrink: 0;
+}
+
+.legend-text {
+    flex: 1;
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.legend-value {
+    font-family: var(--font-mono);
+    color: var(--text-muted);
+    font-size: 12px;
+    flex-shrink: 0;
+}
+
+.insight-footnote {
+    font-size: 11.5px;
+    color: var(--text-muted);
+    margin-top: 10px;
+    flex-shrink: 0;
 }
 
 /* ─── TOP PRODUCTS ────────────────────────────────────────────── */
@@ -646,6 +876,22 @@ body {
     border-radius: 4px;
 }
 
+.alerts-list::-webkit-scrollbar,
+.donut-legend::-webkit-scrollbar {
+    width: 5px;
+}
+
+.alerts-list::-webkit-scrollbar-track,
+.donut-legend::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.alerts-list::-webkit-scrollbar-thumb,
+.donut-legend::-webkit-scrollbar-thumb {
+    background: var(--border-card);
+    border-radius: 4px;
+}
+
 /* ─── RESPONSIVE ──────────────────────────────────────────────── */
 @media (max-width: 1200px) {
     .metrics-grid {
@@ -655,6 +901,10 @@ body {
 
 @media (max-width: 1024px) {
     .charts-section {
+        grid-template-columns: 1fr;
+    }
+
+    .insights-section {
         grid-template-columns: 1fr;
     }
 
@@ -695,6 +945,15 @@ body {
     .dashboard-content {
         padding: 16px;
     }
+
+    .sales-card,
+    .churn-card {
+        height: 320px;
+    }
+
+    .insight-card {
+        height: 280px;
+    }
 }
 
 @media (max-width: 480px) {
@@ -704,5 +963,15 @@ body {
 
     .metric-value {
         font-size: 22px;
+    }
+
+    .donut-chart-row {
+        flex-direction: column;
+        align-items: stretch;
+        text-align: center;
+    }
+
+    .donut-svg-wrapper {
+        margin: 0 auto;
     }
 }
